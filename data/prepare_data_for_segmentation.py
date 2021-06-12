@@ -1,9 +1,9 @@
 import os
 import cv2
-import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import tensorflow as tf
 
 # Paths
 ROOT_PATH = "D:/DataScience/THESIS/Data/"
@@ -18,7 +18,7 @@ NUM_SEGMENTATION_CHANNELS = 3
 NUM_VISUALIZATION_CHANNELS = 4
 
 
-def merge_channels(data_dir, n_channels):
+def merge_channels(data_dir: str, n_channels: int) -> np.ndarray:
     """
     Read and stack individual images of given number of channels into RGB image.
 
@@ -43,7 +43,14 @@ def merge_channels(data_dir, n_channels):
     return stacked_images
 
 
-def save_merged_images(images_path, save_path, num_channels):
+def preprocess_mask(mask_path: str) -> tf.Tensor:
+    mask = tf.io.read_file(mask_path)
+    mask = tf.image.decode_png(mask, channels=1)
+    mask = tf.where(tf.equal(mask != 0, mask > 29), np.dtype('uint8').type(0), np.dtype('uint8').type(1))
+    return mask
+
+
+def save_merged_images(images_path: str, save_path: str, num_channels: int) -> None:
     """
     Save merged images into specific path.
 
@@ -58,7 +65,7 @@ def save_merged_images(images_path, save_path, num_channels):
             plt.imsave(save_path + f"/{_dir}.png", merged_image, format="png")
 
 
-def save_renamed_masks(masks_path, save_mask_path):
+def save_processed_masks(masks_path: str, save_mask_path: str) -> None:
     """
     Save renamed mask image into specific path.
 
@@ -68,10 +75,11 @@ def save_renamed_masks(masks_path, save_mask_path):
     """
     for subdir, dirs, files in os.walk(masks_path):
         for _dir in dirs:
-            shutil.copyfile(subdir + _dir + "/cell_border_mask.png", save_mask_path + f"/{_dir}.png")
+            processed_mask = preprocess_mask(subdir + _dir + "/cell_border_mask.png")
+            tf.keras.preprocessing.image.save_img(path=save_mask_path + f"/{_dir}.png", x=processed_mask)
 
 
-def create_dataset_csv(data_path, image_path, mask_path, csv_save_path):
+def create_dataset_csv(data_path: str, image_path: str, mask_path: str, csv_save_path: str) -> None:
     """
     Create *.txt file for easy accessing segmentation data. Data is organised
     in three columns: image_id, image_path, mask_path.
@@ -98,5 +106,5 @@ def create_dataset_csv(data_path, image_path, mask_path, csv_save_path):
 
 if __name__ == '__main__':
     save_merged_images(DATA_PATH, IMAGES_PATH, NUM_SEGMENTATION_CHANNELS)
-    save_renamed_masks(DATA_PATH, MASKS_PATH)
+    save_processed_masks(DATA_PATH, MASKS_PATH)
     create_dataset_csv(DATA_PATH, IMAGES_PATH, MASKS_PATH, CSV_PATH)
