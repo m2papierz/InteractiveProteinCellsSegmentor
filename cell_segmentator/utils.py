@@ -1,4 +1,5 @@
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 
 @tf.function
@@ -50,3 +51,23 @@ def process_test_images(data: dict, image_size: int) -> tuple:
     input_image, input_mask = normalize_images(input_image, input_mask)
 
     return input_image, input_mask
+
+
+def display_sample(images_list: list) -> None:
+    """
+    Displays image and its mask.
+
+    :param images_list:
+    :return: None
+    """
+    plt.figure(figsize=(18, 18))
+
+    title = ['Input Image', 'True Mask', 'Predicted Mask']
+
+    for i in range(len(images_list)):
+        plt.subplot(1, len(images_list), i+1)
+        plt.title(title[i])
+        plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
+        plt.axis('off')
+    plt.show()
+
