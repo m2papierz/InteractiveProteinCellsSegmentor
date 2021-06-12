@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow.keras.backend as K
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Conv2D
@@ -12,7 +11,7 @@ from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.models import Model
 
 
-def conv2d_block(input_tensor, n_filters, kernel_size, batch_norm):
+def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, batch_norm: bool) -> tf.Tensor:
     """
     Block of two convolutional layers.
 
