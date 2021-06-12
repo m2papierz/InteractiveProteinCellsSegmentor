@@ -1,7 +1,6 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-
 @tf.function
 def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
     """
@@ -16,16 +15,15 @@ def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
 
 
 @tf.function
-def process_train_images(data: dict, image_size: int) -> tuple:
+def process_train_images(data: dict) -> tuple:
     """
-    Augment resize images and augment by flip rotations.
+    Augment images by flip rotations and normalize them.
 
     :param data: dict containing an image and its mask
-    :param image_size: size of the image tensor
     :return: Processed imaged and its mask.
     """
-    input_image = tf.image.resize(data['image'], (image_size, image_size))
-    input_mask = tf.image.resize(data['segmentation_mask'], (image_size, image_size))
+    input_image = tf.keras.preprocessing.image.load_img(data['image'])
+    input_mask = tf.keras.preprocessing.image.load_img(data['segmentation_mask'])
 
     if tf.random.uniform(()) > 0.5:
         input_image = tf.image.flip_left_right(input_image)
