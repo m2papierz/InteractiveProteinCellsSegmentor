@@ -46,6 +46,9 @@ def merge_channels(data_dir: str, n_channels: int) -> np.ndarray:
 def preprocess_mask(mask_path: str) -> tf.Tensor:
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
+    # Originally mask tensor has many unique values. Value equal to 29 represents the border of the connecting
+    # cells while values above cell instances themself. That is why conversion of mask tensor values into 0 and
+    # 1 is needed.
     mask = tf.where(tf.equal(mask != 0, mask > 29), np.dtype('uint8').type(0), np.dtype('uint8').type(1))
     return mask
 
