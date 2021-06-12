@@ -63,7 +63,7 @@ def preprocess_mask(mask_path: str) -> tf.Tensor:
 
 def save_merged_images(images_path: str, save_path: str, num_channels: int) -> None:
     """
-    Save merged images into specific path.
+    Save merged images into specific directory.
 
     :param images_path: images directory
     :param save_path: directory to save merged images
@@ -78,7 +78,7 @@ def save_merged_images(images_path: str, save_path: str, num_channels: int) -> N
 
 def save_processed_masks(masks_path: str, save_mask_path: str) -> None:
     """
-    Save renamed mask image into specific path.
+    Save processed and renamed mask image into specific directory..
 
     :param masks_path: masks directory
     :param save_mask_path: directory to save renamed masks
