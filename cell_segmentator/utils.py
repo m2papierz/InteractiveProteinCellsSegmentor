@@ -94,13 +94,12 @@ def display_sample_images(images_list: list) -> None:
     plt.show()
 
 
-def show_predictions(model: tf.keras.Model, sample_images: tuple, num=1) -> None:
+def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     Show prediction from a sample image.
 
     :param model: model for predictions
     :param sample_images: dataset with sample images
-    :param num: number of predictions
     :return: None
     """
     for image, mask in sample_images:
