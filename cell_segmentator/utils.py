@@ -1,6 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+
 @tf.function
 def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
     """
@@ -51,16 +52,44 @@ def process_test_images(data: dict, image_size: int) -> tuple:
     return input_image, input_mask
 
 
-def display_sample(images_list: list) -> None:
+def config_data_pipeline_performance(dataset: tf.data.Dataset, training: bool, buffer_size: int, batch_size: int,
+                                     seed: int, autotune: int) -> tf.data.Dataset:
     """
-    Displays image and its mask.
+    Configure the data pipeline for its performance enhancement.
 
-    :param images_list:
+    :param dataset: dataset to be configured
+    :param training: a boolean which if true indicates that the dataset set is the training one
+    :param buffer_size: size of the buffer
+    :param batch_size: size of the batch
+    :param seed: random seed for creation of the distribution
+    :param autotune: maximum number of elements that will be used when prefetching
+    :return: Configured dataset
+    """
+    if training:
+        dataset = dataset.shuffle(buffer_size=buffer_size, seed=seed)
+    dataset = dataset.repeat()
+    dataset = dataset.batch(batch_size=batch_size)
+    dataset = dataset.prefetch(buffer_size=autotune)
+
+    return dataset
+
+
+def display_sample(dataset: tf.data.Dataset) -> None:
+    """
+    Displays sample image and its mask from the dataset.
+
+    :param dataset from which sample images are to be displayed
     :return: None
     """
-    plt.figure(figsize=(18, 18))
+    sample_image = sample_mask = []
 
-    title = ['Input Image', 'True Mask', 'Predicted Mask']
+    for image, mask in dataset['train'].take(1):
+        sample_image, sample_mask = image, mask
+
+    images_list = [sample_image[0], sample_mask[0]]
+
+    plt.figure(figsize=(18, 18))
+    title = ['Input image', 'True mask']
 
     for i in range(len(images_list)):
         plt.subplot(1, len(images_list), i+1)
