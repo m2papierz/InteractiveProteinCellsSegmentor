@@ -78,25 +78,25 @@ class Unet:
                           batch_norm=batch_norm)
 
         # Expansive path
-        u6 = Conv2DTranspose(n_filters * 8, (3, 3), strides=(2, 2), padding='same')(c5)
+        u6 = Conv2DTranspose(n_filters * 8, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c5)
         u6 = concatenate([u6, c4])
         u6 = Dropout(dropout)(u6)
         c6 = conv2d_block(input_tensor=u6, n_filters=n_filters * 8, kernel_size=kernel_size,
                           batch_norm=batch_norm)
 
-        u7 = Conv2DTranspose(n_filters * 4, (3, 3), strides=(2, 2), padding='same')(c6)
+        u7 = Conv2DTranspose(n_filters * 4, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c6)
         u7 = concatenate([u7, c3])
         u7 = Dropout(dropout)(u7)
         c7 = conv2d_block(input_tensor=u7, n_filters=n_filters * 4, kernel_size=kernel_size,
                           batch_norm=batch_norm)
 
-        u8 = Conv2DTranspose(n_filters * 2, (3, 3), strides=(2, 2), padding='same')(c7)
+        u8 = Conv2DTranspose(n_filters * 2, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c7)
         u8 = concatenate([u8, c2])
         u8 = Dropout(dropout)(u8)
         c8 = conv2d_block(input_tensor=u8, n_filters=n_filters * 2, kernel_size=kernel_size,
                           batch_norm=batch_norm)
 
-        u9 = Conv2DTranspose(n_filters * 1, (3, 3), strides=(2, 2), padding='same')(c8)
+        u9 = Conv2DTranspose(n_filters * 1, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c8)
         u9 = concatenate([u9, c1])
         u9 = Dropout(dropout)(u9)
         c9 = conv2d_block(input_tensor=u9, n_filters=n_filters * 1, kernel_size=kernel_size,
@@ -105,11 +105,16 @@ class Unet:
 
         self.model = Model(inputs=[input_], outputs=[output_])
 
-    def train(self, dataset, epochs, loss_function, callbacks, optimizer="Adam", metric="accuracy"):
+    def compile(self, loss_function="sparse_categorical_crossentropy", optimizer="Adam", metric="accuracy"):
+        self.model.compile(loss=loss_function, optimizer=optimizer, metrics=[metric])
+
+        return self.model
+
+    def train(self, dataset, epochs, callbacks):
         epoch_steps = dataset['train'].shape / epochs
         val_steps = dataset['val'].shape / epochs
 
-        self.model.compile(loss=loss_function, optimizer=optimizer, metrics=[metric])
+        self.model.compile()
 
         return self.model.fit(dataset['train'],
                               steps_per_epoch=epoch_steps,
