@@ -101,20 +101,18 @@ class Unet:
         u9 = Dropout(dropout)(u9)
         c9 = conv2d_block(input_tensor=u9, n_filters=n_filters * 1, kernel_size=kernel_size,
                           batch_norm=batch_norm)
-        output_ = Conv2D(1, (1, 1), activation='sigmoid')(c9)
+        output_ = Conv2D(1, (1, 1), activation="sigmoid")(c9)
 
         self.model = Model(inputs=[input_], outputs=[output_])
 
-    def compile(self, loss_function="sparse_categorical_crossentropy", optimizer="Adam", metric="accuracy"):
-        self.model.compile(loss=loss_function, optimizer=optimizer, metrics=[metric])
+    def compile(self, loss_function, optimizer, metrics):
+        self.model.compile(loss=loss_function,
+                           optimizer=optimizer,
+                           metrics=metrics)
 
-        return self.model
-
-    def train(self, dataset, epochs, callbacks):
-        epoch_steps = dataset['train'].shape / epochs
-        val_steps = dataset['val'].shape / epochs
-
-        self.model.compile()
+    def train(self, dataset, train_size, val_size, batch_size, epochs, callbacks):
+        epoch_steps = train_size / batch_size
+        val_steps = val_size / batch_size
 
         return self.model.fit(dataset['train'],
                               steps_per_epoch=epoch_steps,
@@ -122,3 +120,5 @@ class Unet:
                               validation_steps=val_steps,
                               epochs=epochs,
                               callbacks=callbacks)
+
+
