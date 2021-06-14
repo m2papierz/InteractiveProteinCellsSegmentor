@@ -22,8 +22,8 @@ BATCH_SIZE = 8
 BUFFER_SIZE = 1024
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 120
-EARLY_STOP_PATIENCE = 35
+EPOCHS = 200
+EARLY_STOP_PATIENCE = 200
 TRAIN_RATIO = 0.7
 VAL_RATIO = 0.15
 
@@ -138,11 +138,7 @@ def main():
         unet.train(dataset=segmentation_dataset, train_size=train_size, val_size=val_size, batch_size=BATCH_SIZE,
                    epochs=EPOCHS, callbacks=callbacks_list)
 
-    best_model = tf.keras.models.load_model(BEST_MODEL_PATH,
-                                            custom_objects={combined_iou_dice_loss.__name__: combined_iou_dice_loss,
-                                                            iou.__name__: iou,
-                                                            dice.__name__: dice})
-    show_predictions(model=best_model, sample_images=samples)
+
 
 
 if __name__ == '__main__':
