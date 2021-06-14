@@ -6,24 +6,24 @@ from glob import glob
 from unet_model import Unet
 from datetime import datetime
 from utils import process_train_images, config_data_pipeline_performance, DisplayCallback
-from utils import iou, dice, combined_iou_dice_loss
+from utils import iou, dice, combined_iou_dice_loss, show_predictions
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared/"
-BEST_MODEL_PATH = "/models/"
+BEST_MODEL_PATH = "D:/DataScience/THESIS/models/best_segmentation_model.hdf5"
 TENSORBOARD_LOGS_PATH = ""
 
 # General
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 BUFFER_SIZE = 1024
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 70
-EARLY_STOP_PATIENCE = 15
+EPOCHS = 120
+EARLY_STOP_PATIENCE = 35
 TRAIN_RATIO = 0.7
 VAL_RATIO = 0.15
 
@@ -100,8 +100,8 @@ def create_dataset(data_path: str) -> tuple:
     dataset['train'] = dataset['train'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset['val'] = dataset['val'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-    config_data_pipeline_performance(dataset['train'], True, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
-    config_data_pipeline_performance(dataset['val'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
+    dataset['train'] = config_data_pipeline_performance(dataset['train'], True, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
+    dataset['val'] = config_data_pipeline_performance(dataset['val'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -115,7 +115,7 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
 
 def make_callbacks(sample_images: list, early_stop_patience: int, save_model_path: str):
     callbacks = [
-        DisplayCallback(sample_images, displaying_freq=10, enable_displaying=True),
+        DisplayCallback(sample_images, displaying_freq=10, enable_displaying=False),
         EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
         ModelCheckpoint(filepath=save_model_path, monitor="val_loss", verbose=1, save_best_only=True)
     ]
@@ -125,7 +125,7 @@ def make_callbacks(sample_images: list, early_stop_patience: int, save_model_pat
 def main():
     print_device_info()
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
-    samples = segmentation_dataset['test'].take(1)
+    samples = segmentation_dataset['train'].take(1)
 
     callbacks_list = make_callbacks(sample_images=samples,
                                     early_stop_patience=EARLY_STOP_PATIENCE,
@@ -138,7 +138,12 @@ def main():
         unet.train(dataset=segmentation_dataset, train_size=train_size, val_size=val_size, batch_size=BATCH_SIZE,
                    epochs=EPOCHS, callbacks=callbacks_list)
 
+    best_model = tf.keras.models.load_model(BEST_MODEL_PATH,
+                                            custom_objects={combined_iou_dice_loss.__name__: combined_iou_dice_loss,
+                                                            iou.__name__: iou,
+                                                            dice.__name__: dice})
+    show_predictions(model=best_model, sample_images=samples)
+
 
 if __name__ == '__main__':
     main()
-
