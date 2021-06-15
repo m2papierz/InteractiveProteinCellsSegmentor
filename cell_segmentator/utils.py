@@ -126,10 +126,9 @@ def combined_loss(y_true, y_pred, bin_weight=1, iou_weight=1, dice_weight=1) -> 
     """
     log_dice = -K.log(dice_loss(y_true, y_pred))
     log_iou = - K.log(iou_loss(y_true, y_pred))
+    binary_crossentropy = K.binary_crossentropy(y_true, y_pred)
 
-    return bin_weight * K.binary_crossentropy(y_true, y_pred) \
-           + iou_weight * log_iou(y_true, y_pred) \
-           + dice_weight * log_dice(y_true, y_pred)
+    return bin_weight * binary_crossentropy + iou_weight * log_iou + dice_weight * log_dice
 
 
 @tf.function
