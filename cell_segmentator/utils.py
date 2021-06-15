@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import matplotlib.pyplot as plt
 import IPython.display as display
 import tensorflow.keras.backend as K
@@ -38,16 +39,15 @@ def process_train_images(data: dict) -> tuple:
 
 
 @tf.function
-def process_test_images(data: dict, image_size: int) -> tuple:
+def process_test_images(data: dict) -> tuple:
     """
     Normalize and resize test image and mask tensors.
 
     :param data: dict containing an image and its mask
-    :param image_size: size of the image tensor
     :return: Processed image and its mask.
     """
-    input_image = tf.image.resize(data['image'], (image_size, image_size))
-    input_mask = tf.image.resize(data['segmentation_mask'], (image_size, image_size))
+    input_image = tf.image.resize(data['image'], (512, 512))
+    input_mask = tf.image.resize(data['segmentation_mask'], (512, 512))
 
     input_image, input_mask = normalize_images(input_image, input_mask)
 
@@ -78,20 +78,25 @@ def config_data_pipeline_performance(dataset: tf.data.Dataset, training: bool, b
 
 def display_sample_images(images_list: list) -> None:
     """
-    Displays sample image and its mask from the dataset.
+    Display sample image and its mask from the dataset.
 
     :param images_list: list of images to be displayed
     :return: None
     """
     plt.figure(figsize=(18, 18))
-    title = ['Input image', 'True mask', 'Prediction mask']
+    title = ['Input image', 'True mask', 'Prediction mask', 'Processed prediction mask']
 
     for i in range(len(images_list)):
-        plt.subplot(1, len(images_list), i+1)
+        plt.subplot(1, len(images_list), i + 1)
         plt.title(title[i])
         plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
         plt.axis('off')
     plt.show()
+
+
+def process_prediction(prediction: float) -> tf.Tensor:
+    processed = tf.where(prediction >= 0.7, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    return processed
 
 
 def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
@@ -104,72 +109,64 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[0], mask[0], pred_mask[0]])
+        display_sample_images([image[0], mask[0], pred_mask[0], process_prediction(pred_mask[0])])
 
 
 @tf.function
-def combined_iou_dice_loss(y_true, y_pred, smooth=1, cat_weight=1, iou_weight=1, dice_weight=1):
-    return cat_weight * K.categorical_crossentropy(y_true, y_pred) \
-           + iou_weight * log_iou(y_true, y_pred, smooth) \
-           + dice_weight * log_dice(y_true, y_pred, smooth)
+def combined_loss(y_true, y_pred, bin_weight=1, iou_weight=1, dice_weight=1) -> float:
+    """
+    Loss function combining binary crossentropy loss, dice loss and intersection over union loss.
+
+    :param y_true: truth tensor
+    :param y_pred: prediction tensor
+    :param bin_weight: weight of the binary crossentropy loss
+    :param iou_weight: weight of the intersection over union loss
+    :param dice_weight: weight of the dice loss
+    :return: Combined loss
+    """
+    log_dice = -K.log(dice_loss(y_true, y_pred))
+    log_iou = - K.log(iou_loss(y_true, y_pred))
+
+    return bin_weight * K.binary_crossentropy(y_true, y_pred) \
+           + iou_weight * log_iou(y_true, y_pred) \
+           + dice_weight * log_dice(y_true, y_pred)
 
 
 @tf.function
-def log_iou(y_true, y_pred, smooth=1):
+def iou_loss(y_true, y_pred, epsilon=1e-6) -> float:
     """
+    Intersection over union loss function.
 
-    :param y_true:
-    :param y_pred:
-    :param smooth:
-    :return:
-    """
-    return - K.log(iou(y_true, y_pred, smooth))
-
-
-@tf.function
-def log_dice(y_true, y_pred, smooth=1):
-    """
-
-    :param y_true:
-    :param y_pred:
-    :param smooth:
-    :return:
-    """
-    return -K.log(dice(y_true, y_pred, smooth))
-
-
-@tf.function
-def iou(y_true, y_pred, smooth=1):
-    """
-
-    :param y_true:
-    :param y_pred:
-    :param smooth:
-    :return:
+    :param y_true: truth tensor
+    :param y_pred: prediction tensor
+    :param epsilon: parameter for numerical stability to avoid divide by zero errors
+    :return: Intersection over union loss
     """
     intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
     union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
-    return K.mean((intersection + smooth) / (union + smooth), axis=0)
+    return K.mean((intersection + epsilon) / (union + epsilon), axis=0)
 
 
 @tf.function
-def dice(y_true, y_pred, smooth=1):
+def dice_loss(y_true, y_pred, epsilon=1e-6) -> float:
     """
+    Dice loss function.
 
-    :param y_true:
-    :param y_pred:
-    :param smooth:
-    :return:
+    :param y_true: truth tensor
+    :param y_pred: prediction tensor
+    :param epsilon: parameter for numerical stability to avoid divide by zero errors
+    :return: Dice loss
     """
     intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
     union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
-    return K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
+    return K.mean((2. * intersection + epsilon) / (union + epsilon), axis=0)
 
 
 class DisplayCallback(tf.keras.callbacks.Callback):
     """
     Callbacks displaying sample images and predictions for them each 5th epoch.
     """
+
     def __init__(self, sample_images, displaying_freq=5, enable_displaying=False):
         super().__init__()
         self.sample_images = sample_images
@@ -181,4 +178,3 @@ class DisplayCallback(tf.keras.callbacks.Callback):
         if self.enable_displaying:
             if ((epoch + 1) % self.displaying_freq) == 0:
                 show_predictions(self.model, self.sample_images)
-
