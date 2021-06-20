@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import IPython.display as display
 import tensorflow.keras.backend as K
 
+from unet_train import IMAGE_HEIGHT, IMAGE_WIDTH
+
 
 @tf.function
 def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
@@ -26,8 +28,8 @@ def process_train_images(data: dict) -> tuple:
     :param data: dict containing an image and its mask
     :return: Processed imaged and its mask.
     """
-    input_image = tf.image.resize(data['image'], (512, 512))
-    input_mask = tf.image.resize(data['segmentation_mask'], (512, 512))
+    input_image = tf.image.resize(data['image'], (IMAGE_HEIGHT, IMAGE_WIDTH))
+    input_mask = tf.image.resize(data['segmentation_mask'], (IMAGE_HEIGHT, IMAGE_WIDTH))
 
     if tf.random.uniform(()) > 0.5:
         input_image = tf.image.flip_left_right(input_image)
@@ -46,8 +48,8 @@ def process_test_images(data: dict) -> tuple:
     :param data: dict containing an image and its mask
     :return: Processed image and its mask.
     """
-    input_image = tf.image.resize(data['image'], (512, 512))
-    input_mask = tf.image.resize(data['segmentation_mask'], (512, 512))
+    input_image = tf.image.resize(data['image'], (IMAGE_HEIGHT, IMAGE_WIDTH))
+    input_mask = tf.image.resize(data['segmentation_mask'], (IMAGE_HEIGHT, IMAGE_WIDTH))
 
     input_image, input_mask = normalize_images(input_image, input_mask)
 
@@ -95,6 +97,7 @@ def display_sample_images(images_list: list) -> None:
 
 
 def process_prediction(prediction: float) -> tf.Tensor:
+    """Temporary function for model evaluation test."""
     processed = tf.where(prediction >= 0.7, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
     return processed
 

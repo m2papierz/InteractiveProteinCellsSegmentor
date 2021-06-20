@@ -13,7 +13,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared/"
-BEST_MODEL_PATH = "D:/DataScience/THESIS/models/best_segmentation_model.hdf5"
+BEST_MODEL_PATH = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 TENSORBOARD_LOGS_PATH = 'D:\\DataScience\\THESIS\\models\\logs\\'
 
 # General
@@ -22,10 +22,11 @@ BATCH_SIZE = 8
 BUFFER_SIZE = 1024
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 2000
-EARLY_STOP_PATIENCE = 200
-TRAIN_RATIO = 0.8
-VAL_RATIO = 0.1
+EPOCHS = 1000
+EARLY_STOP_PATIENCE = 150
+TRAIN_RATIO = 0.85
+VAL_RATIO = 0.15
+TEST_DATASET = False
 
 # Image parameters
 IMAGE_HEIGHT = 512
@@ -33,7 +34,7 @@ IMAGE_WIDTH = 512
 IMAGE_CHANNELS = 3
 
 # Train parameters
-STANDARD_UNET = False
+STANDARD_UNET = True
 LOSS = combined_loss
 OPTIMIZER = tf.keras.optimizers.Adam()
 METRICS = [iou_loss, dice_loss]
@@ -75,11 +76,12 @@ def parse_image(image_path: str) -> dict:
     return {'image': image, 'segmentation_mask': mask}
 
 
-def create_dataset(data_path: str) -> tuple:
+def create_dataset(data_path: str, test: bool) -> tuple:
     """
     Creates dataset for image segmentation.
 
     :param data_path: path to data dictionary
+    :param test: a boolean which if true indicates that dataset will be created with test sub-dataset
     :return: Tuple with dataset, train dataset size and validation dataset size
     """
     dataset_size = len(glob(data_path + "image/*.png"))
@@ -90,21 +92,26 @@ def create_dataset(data_path: str) -> tuple:
     train_dataset = full_dataset.take(train_dataset_size)
     remaining = full_dataset.skip(train_dataset_size)
     val_dataset = remaining.take(val_dataset_size)
-    test_dataset = remaining.skip(val_dataset_size)
 
     train_dataset = train_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_dataset = val_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    test_dataset = test_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-    dataset = {"train": train_dataset, "val": val_dataset, "test": test_dataset}
+    if test:
+        test_dataset = remaining.skip(val_dataset_size)
+        test_dataset = test_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = {"train": train_dataset, "val": val_dataset, "test": test_dataset}
+    else:
+        dataset = {"train": train_dataset, "val": val_dataset}
 
     dataset['train'] = dataset['train'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset['val'] = dataset['val'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    dataset['test'] = dataset['test'].map(process_test_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
     dataset['train'] = config_data_pipeline_performance(dataset['train'], True, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
     dataset['val'] = config_data_pipeline_performance(dataset['val'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
-    dataset['test'] = config_data_pipeline_performance(dataset['test'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
+
+    if test:
+        dataset['test'] = dataset['test'].map(process_test_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset['test'] = config_data_pipeline_performance(dataset['test'], False, BUFFER_SIZE, BATCH_SIZE, SEED,
+                                                           AUTOTUNE)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -112,20 +119,15 @@ def create_dataset(data_path: str) -> tuple:
 def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.keras.losses.Loss,
                 optimizer: tf.keras.optimizers.Optimizer, metrics: list):
     """
+    Build and compile model.
 
-    :param img_height:
-    :type img_height:
-    :param img_width:
-    :type img_width:
-    :param img_channels:
-    :type img_channels:
-    :param loss:
-    :type loss:
-    :param optimizer:
-    :type optimizer:
-    :param metrics:
-    :type metrics:
-    :return:
+    :param img_height: height of the image
+    :param img_width: width of the image
+    :param img_channels: number of image channels
+    :param loss: loss function
+    :param optimizer: optimizer
+    :param metrics: metrics for training
+    :return: Build and compiled model.
     """
     if STANDARD_UNET:
         model = Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
@@ -139,14 +141,12 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
 
 def make_callbacks(sample_images: list, early_stop_patience: int, save_model_path: str):
     """
+    Make list of callbacks used during training.
 
-    :param sample_images:
-    :type sample_images:
-    :param early_stop_patience:
-    :type early_stop_patience:
-    :param save_model_path:
-    :type save_model_path:
-    :return:
+    :param sample_images: sample images used for DisplayCallback
+    :param early_stop_patience: number of epochs with no improvement after which training will be stopped
+    :param save_model_path: path for saving the best model from ModelCheckpoint callback
+    :return: List of callbacks.
     """
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
     callbacks = [
@@ -161,9 +161,8 @@ def make_callbacks(sample_images: list, early_stop_patience: int, save_model_pat
 def plot_history(model_history: tf.keras.callbacks.History) -> None:
     """
 
-    :param model_history:
-    :type model_history:
-    :return:
+    :param model_history: dictionary caring history records of model training
+    :return: None
     """
     loss = model_history.history['loss']
     val_loss = model_history.history['val_loss']
@@ -181,7 +180,7 @@ def plot_history(model_history: tf.keras.callbacks.History) -> None:
 
 def main():
     print_device_info()
-    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
+    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH, False)
     samples = segmentation_dataset['train'].take(1)
 
     callbacks_list = make_callbacks(sample_images=samples,
