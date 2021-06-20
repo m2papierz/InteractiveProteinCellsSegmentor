@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import IPython.display as display
 import tensorflow.keras.backend as K
 
-from unet_train import IMAGE_HEIGHT, IMAGE_WIDTH
+IMAGE_HEIGHT = 512
+IMAGE_WIDTH = 512
 
 
 @tf.function
