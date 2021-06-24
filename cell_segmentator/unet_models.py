@@ -27,11 +27,12 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, batc
                kernel_initializer='he_normal', padding='same')(input_tensor)
     if batch_norm:
         x = BatchNormalization()(x)
+        
     x = Activation('elu')(x)
 
     # Second layer
     x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size),
-               kernel_initializer='he_normal', padding='same')(input_tensor)
+               kernel_initializer='he_normal', padding='same')(x)
     if batch_norm:
         x = BatchNormalization()(x)
     x = Activation('elu')(x)
@@ -124,6 +125,16 @@ class Unet:
 
 
 class UnetPP:
+    """
+    U-net++ architecture.
+
+    :param img_height: height of the input image tensor
+    :param img_width: width of the input image tensor
+    :param img_channels: number of channels of the input image tensor
+    :param dropout: dropout rate
+    :param n_filters: base number of filters in the convolutional layers
+    :param activation_alpha:
+    """
     def __init__(self, img_height, img_width, img_channels, dropout=0.2, n_filters=16, activation_alpha=0.01):
         input_ = Input((img_height, img_width, img_channels))
         x00 = Conv2D(filters=2 * n_filters, kernel_size=(3, 3), padding='same')(input_)
