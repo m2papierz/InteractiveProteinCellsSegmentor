@@ -13,7 +13,8 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared/"
-BEST_MODEL_PATH = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
+BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
+BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 TENSORBOARD_LOGS_PATH = 'D:\\DataScience\\THESIS\\models\\logs\\'
 
 # General
@@ -22,7 +23,7 @@ BATCH_SIZE = 8
 BUFFER_SIZE = 1024
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 1000
+EPOCHS = 1500
 EARLY_STOP_PATIENCE = 150
 TRAIN_RATIO = 0.85
 VAL_RATIO = 0.15
@@ -183,9 +184,14 @@ def main():
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH, False)
     samples = segmentation_dataset['train'].take(1)
 
+    if STANDARD_UNET:
+        model_path = BEST_MODEL_PATH_UNET
+    else:
+        model_path = BEST_MODEL_PATH_UNETPP
+
     callbacks_list = make_callbacks(sample_images=samples,
                                     early_stop_patience=EARLY_STOP_PATIENCE,
-                                    save_model_path=BEST_MODEL_PATH)
+                                    save_model_path=model_path)
 
     unet = build_model(img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT, img_channels=IMAGE_CHANNELS, loss=LOSS,
                        optimizer=OPTIMIZER, metrics=METRICS)
