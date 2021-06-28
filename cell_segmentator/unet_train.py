@@ -6,7 +6,7 @@ from glob import glob
 from unet_models import Unet, UnetPP
 from datetime import datetime
 from utils import process_train_images, process_test_images, config_data_pipeline_performance, DisplayCallback
-from utils import combined_loss, iou_loss, dice_loss
+from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -19,12 +19,12 @@ TENSORBOARD_LOGS_PATH = 'D:\\DataScience\\THESIS\\models\\logs\\'
 
 # General
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 BUFFER_SIZE = 1024
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
 EPOCHS = 1500
-EARLY_STOP_PATIENCE = 150
+EARLY_STOP_PATIENCE = 50
 TRAIN_RATIO = 0.85
 VAL_RATIO = 0.15
 TEST_DATASET = False
@@ -36,9 +36,9 @@ IMAGE_CHANNELS = 3
 
 # Train parameters
 STANDARD_UNET = True
-LOSS = combined_loss
+LOSS = combined_dice_iou_loss
 OPTIMIZER = tf.keras.optimizers.Adam()
-METRICS = [iou_loss, dice_loss]
+METRICS = [iou, dice]
 
 
 def print_device_info():
@@ -133,7 +133,7 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
     if STANDARD_UNET:
         model = Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
     else:
-        model = UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = UnetPP(img_height, img_width, img_channels)
 
     model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
 
@@ -152,8 +152,8 @@ def make_callbacks(sample_images: list, early_stop_patience: int, save_model_pat
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
     callbacks = [
         DisplayCallback(sample_images, displaying_freq=10, enable_displaying=False),
-        EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
-        ModelCheckpoint(filepath=save_model_path, monitor="val_loss", verbose=1, save_best_only=True),
+        EarlyStopping(monitor="val_dice", patience=early_stop_patience, mode="max", verbose=1),
+        ModelCheckpoint(filepath=save_model_path, monitor="val_dice", verbose=1, save_best_only=True, mode="max"),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
     ]
     return callbacks
