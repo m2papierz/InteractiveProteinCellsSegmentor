@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from glob import glob
 from utils import show_predictions
-from utils import combined_loss, iou_loss, dice_loss
+from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from utils import process_test_images, config_data_pipeline_performance
 
 # Paths
@@ -12,10 +12,10 @@ BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 
 # General
-BATCH_SIZE = 12
+BATCH_SIZE = 8
 BUFFER_SIZE = 1024
 SEED = 42
-STANDARD_UNET = False
+STANDARD_UNET = True
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
@@ -70,19 +70,20 @@ def evaluate_model(model: tf.keras.models.Model, dataset: dict, test_size: int, 
     :return: None
     """
     test_steps = tf.floor(test_size / batch_size)
-    combined, iou, dice = model.evaluate(dataset['test'], steps=test_steps)
+    loss, iou_score, dice_score = model.evaluate(dataset['test'], steps=test_steps)
 
-    print(f"Combined_loss: {combined}")
-    print(f"IOU loss: {iou}")
-    print(f"Dice loss: {dice}")
+    print(f"Loss: {loss}")
+    print(f"IOU: {iou_score}")
+    print(f"Dice: {dice_score}")
 
 
 def main():
     segmentation_dataset, dataset_size = create_test_dataset(DATA_PATH)
     samples = segmentation_dataset['test'].take(1)
-    custom_objects = {combined_loss.__name__: combined_loss,
-                      iou_loss.__name__: iou_loss,
-                      dice_loss.__name__: dice_loss}
+    custom_objects = {jaccard_distance_loss.__name__: jaccard_distance_loss,
+                      combined_dice_iou_loss.__name__: combined_dice_iou_loss,
+                      iou.__name__: iou,
+                      dice.__name__: dice}
 
     if STANDARD_UNET:
         best_model = tf.keras.models.load_model(BEST_MODEL_PATH_UNET, custom_objects=custom_objects)
