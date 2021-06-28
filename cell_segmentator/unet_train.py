@@ -36,7 +36,7 @@ IMAGE_CHANNELS = 3
 
 # Train parameters
 STANDARD_UNET = True
-LOSS = combined_dice_iou_loss
+LOSS = jaccard_distance_loss
 OPTIMIZER = tf.keras.optimizers.Adam()
 METRICS = [iou, dice]
 
