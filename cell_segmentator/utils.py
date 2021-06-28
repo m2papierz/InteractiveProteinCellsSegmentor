@@ -1,8 +1,9 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import IPython.display as display
 import tensorflow.keras.backend as K
+
 
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
@@ -99,7 +100,7 @@ def display_sample_images(images_list: list) -> None:
 
 def process_prediction(prediction: float) -> tf.Tensor:
     """Temporary function for model evaluation test."""
-    processed = tf.where(prediction >= 0.7, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    processed = tf.where(prediction >= 0.95, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
     return processed
 
 
@@ -113,56 +114,71 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[0], mask[0], pred_mask[0], process_prediction(pred_mask[0])])
+        display_sample_images([image[1], mask[1], pred_mask[1]])
 
 
 @tf.function
-def combined_loss(y_true, y_pred, bin_weight=1, iou_weight=1, dice_weight=1) -> float:
+def combined_dice_iou_loss(y_true, y_pred, iou_weight=1, dice_weight=1) -> float:
     """
     Loss function combining binary crossentropy loss, dice loss and intersection over union loss.
 
     :param y_true: truth tensor
     :param y_pred: prediction tensor
-    :param bin_weight: weight of the binary crossentropy loss
     :param iou_weight: weight of the intersection over union loss
     :param dice_weight: weight of the dice loss
     :return: Combined loss
     """
-    log_dice = -K.log(dice_loss(y_true, y_pred))
-    log_iou = - K.log(iou_loss(y_true, y_pred))
-    binary_crossentropy = K.binary_crossentropy(y_true, y_pred)
+    log_dice = -K.log(dice(y_true, y_pred))
+    log_iou = - K.log(iou(y_true, y_pred))
 
-    return bin_weight * binary_crossentropy + iou_weight * log_iou + dice_weight * log_dice
+    return iou_weight * log_iou + dice_weight * log_dice
 
 
 @tf.function
-def iou_loss(y_true, y_pred, epsilon=1e-6) -> float:
+def iou(y_true, y_pred, smooth=1) -> float:
     """
     Intersection over union loss function.
 
     :param y_true: truth tensor
     :param y_pred: prediction tensor
-    :param epsilon: parameter for numerical stability to avoid divide by zero errors
+    :param smooth: parameter for numerical stability to avoid divide by zero errors
     :return: Intersection over union loss
     """
     intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
     union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
-    return K.mean((intersection + epsilon) / (union + epsilon), axis=0)
+    return K.mean((intersection + smooth) / (union + smooth), axis=0)
 
 
 @tf.function
-def dice_loss(y_true, y_pred, epsilon=1e-6) -> float:
+def dice(y_true, y_pred, smooth=1) -> float:
     """
     Dice loss function.
 
     :param y_true: truth tensor
     :param y_pred: prediction tensor
-    :param epsilon: parameter for numerical stability to avoid divide by zero errors
+    :param smooth: parameter for numerical stability to avoid divide by zero errors
     :return: Dice loss
     """
     intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
     union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
-    return K.mean((2. * intersection + epsilon) / (union + epsilon), axis=0)
+    return K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
+
+
+@tf.function
+def jaccard_distance_loss(y_true, y_pred, smooth=100) -> float:
+    """
+    Jaccard distance for semantic segmentation also known as the intersection-over-union loss.
+    This implementation is adapted for semantic segmentation.
+
+    :param y_true: truth tensor
+    :param y_pred: prediction tensor
+    :param smooth:parameter for numerical stability to avoid divide by zero error
+    :return: Jaccard loss
+    """
+    intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
+    sum_ = K.sum(K.abs(y_true) + K.abs(y_pred), axis=-1)
+    jac = (intersection + smooth) / (sum_ - intersection + smooth)
+    return (1 - jac) * smooth
 
 
 class DisplayCallback(tf.keras.callbacks.Callback):
