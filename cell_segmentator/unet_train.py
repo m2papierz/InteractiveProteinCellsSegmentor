@@ -12,7 +12,7 @@ from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
-DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared_new/"
+DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/train/"
 BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
