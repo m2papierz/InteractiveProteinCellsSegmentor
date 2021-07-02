@@ -9,8 +9,20 @@ from tensorflow.keras.layers import concatenate
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import ELU
 from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import UpSampling2D
+from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
+from tensorflow.keras.applications import MobileNetV2
+
+filters_num = [32, 64, 128, 256, 512]
+skip_connection_names = [
+    "input_image",
+    "block_1_expand_relu",
+    "block_3_expand_relu",
+    "block_6_expand_relu",
+    "block_13_expand_relu"
+]
 
 
 def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regularizer_factor: float,
@@ -26,7 +38,7 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regu
     :return: Output tensor of two convolutional layers
     """
     # First layer
-    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_regularizer=l2(regularizer_factor),
+    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size),
                kernel_initializer='he_normal', padding='same')(input_tensor)
     if batch_norm:
         x = BatchNormalization()(x)
@@ -34,7 +46,7 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regu
     x = Activation('elu')(x)
 
     # Second layer
-    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_regularizer=l2(regularizer_factor),
+    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size),
                kernel_initializer='he_normal', padding='same')(x)
     if batch_norm:
         x = BatchNormalization()(x)
@@ -84,25 +96,29 @@ class Unet:
                           regularizer_factor=regularizer_factor, batch_norm=batch_norm)
 
         # Expansive path
-        u6 = Conv2DTranspose(n_filters * 8, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c5)
+        u6 = Conv2DTranspose(n_filters * 8, (3, 3), strides=(2, 2), padding='same',
+                             kernel_initializer="he_normal")(c5)
         u6 = concatenate([u6, c4])
         u6 = Dropout(dropout)(u6)
         c6 = conv2d_block(input_tensor=u6, n_filters=n_filters * 8, kernel_size=kernel_size,
                           regularizer_factor=regularizer_factor, batch_norm=batch_norm)
 
-        u7 = Conv2DTranspose(n_filters * 4, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c6)
+        u7 = Conv2DTranspose(n_filters * 4, (3, 3), strides=(2, 2), padding='same',
+                             kernel_initializer="he_normal")(c6)
         u7 = concatenate([u7, c3])
         u7 = Dropout(dropout)(u7)
         c7 = conv2d_block(input_tensor=u7, n_filters=n_filters * 4, kernel_size=kernel_size,
                           regularizer_factor=regularizer_factor, batch_norm=batch_norm)
 
-        u8 = Conv2DTranspose(n_filters * 2, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c7)
+        u8 = Conv2DTranspose(n_filters * 2, (3, 3), strides=(2, 2), padding='same',
+                             kernel_initializer="he_normal")(c7)
         u8 = concatenate([u8, c2])
         u8 = Dropout(dropout)(u8)
         c8 = conv2d_block(input_tensor=u8, n_filters=n_filters * 2, kernel_size=kernel_size,
                           regularizer_factor=regularizer_factor, batch_norm=batch_norm)
 
-        u9 = Conv2DTranspose(n_filters * 1, (3, 3), strides=(2, 2), padding='same', kernel_initializer="he_normal")(c8)
+        u9 = Conv2DTranspose(n_filters * 1, (3, 3), strides=(2, 2), padding='same',
+                             kernel_initializer="he_normal")(c8)
         u9 = concatenate([u9, c1])
         u9 = Dropout(dropout)(u9)
         c9 = conv2d_block(input_tensor=u9, n_filters=n_filters * 1, kernel_size=kernel_size,
@@ -317,6 +333,48 @@ class UnetPP:
         x04 = ELU()(x04)
         x04 = Dropout(dropout)(x04)
         output_ = Conv2D(1, kernel_size=(1, 1), kernel_initializer='he_normal', activation='sigmoid')(x04)
+
+        self.model = tf.keras.Model(inputs=[input_], outputs=[output_])
+
+    def compile(self, loss_function, optimizer, metrics):
+        self.model.compile(loss=loss_function,
+                           optimizer=optimizer,
+                           metrics=metrics)
+
+    def train(self, dataset, train_size, val_size, batch_size, epochs, callbacks):
+        epoch_steps = tf.floor(train_size / batch_size)
+        val_steps = tf.floor(val_size / batch_size)
+
+        return self.model.fit(dataset['train'],
+                              steps_per_epoch=epoch_steps,
+                              validation_data=dataset['val'],
+                              validation_steps=val_steps,
+                              epochs=epochs,
+                              callbacks=callbacks)
+
+
+class UnetFT:
+    def __init__(self, img_height, img_width, img_channels):
+        input_ = Input(shape=(img_height, img_width, img_channels), name="input_image")
+        encoder = MobileNetV2(input_tensor=input_, weights="imagenet", include_top=False, alpha=1.4)
+        encoder_output = encoder.get_layer("block_16_project").output
+        encoder.trainable = True
+
+        x = encoder_output
+        for i in range(1, len(skip_connection_names) + 1, 1):
+            x_skip = encoder.get_layer(skip_connection_names[-i]).output
+            x = UpSampling2D((2, 2))(x)
+            x = Concatenate()([x, x_skip])
+
+            x = Conv2D(filters_num[-i], (3, 3), padding="same", kernel_initializer="he_normal")(x)
+            x = BatchNormalization()(x)
+            x = Activation("relu")(x)
+
+            x = Conv2D(filters_num[-i], (3, 3), padding="same", kernel_initializer="he_normal")(x)
+            x = BatchNormalization()(x)
+            x = Activation("relu")(x)
+
+        output_ = Conv2D(1, (1, 1), activation="sigmoid", padding="same", kernel_initializer="he_normal")(x)
 
         self.model = tf.keras.Model(inputs=[input_], outputs=[output_])
 

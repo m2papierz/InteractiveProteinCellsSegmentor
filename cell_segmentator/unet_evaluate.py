@@ -10,12 +10,14 @@ from utils import process_test_images, config_data_pipeline_performance
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/test/"
 BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
+BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
 
 # General
-BATCH_SIZE = 8
-BUFFER_SIZE = 1024
+BATCH_SIZE = 3
+BUFFER_SIZE = 512
 SEED = 42
-STANDARD_UNET = True
+MODEL_ARCHITECTURES = ["STANDARD_UNET", "UNETPP", "FT_UNET"]
+UNET_ARCHITECTURE = MODEL_ARCHITECTURES[2]
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
@@ -85,10 +87,12 @@ def main():
                       iou.__name__: iou,
                       dice.__name__: dice}
 
-    if STANDARD_UNET:
+    if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
         best_model = tf.keras.models.load_model(BEST_MODEL_PATH_UNET, custom_objects=custom_objects)
-    else:
+    elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
         best_model = tf.keras.models.load_model(BEST_MODEL_PATH_UNETPP, custom_objects=custom_objects)
+    else:
+        best_model = tf.keras.models.load_model(BEST_MODEL_PATH_UNETFT, custom_objects=custom_objects)
 
     evaluate_model(model=best_model,
                    dataset=segmentation_dataset,

@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import IPython.display as display
 import tensorflow.keras.backend as K
 
-
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 
@@ -114,24 +113,7 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[1], mask[1], pred_mask[1]])
-
-
-@tf.function
-def combined_dice_iou_loss(y_true, y_pred, iou_weight=1, dice_weight=1) -> float:
-    """
-    Loss function combining binary crossentropy loss, dice loss and intersection over union loss.
-
-    :param y_true: truth tensor
-    :param y_pred: prediction tensor
-    :param iou_weight: weight of the intersection over union loss
-    :param dice_weight: weight of the dice loss
-    :return: Combined loss
-    """
-    log_dice = -K.log(dice(y_true, y_pred))
-    log_iou = - K.log(iou(y_true, y_pred))
-
-    return iou_weight * log_iou + dice_weight * log_dice
+        display_sample_images([image[2], mask[2], pred_mask[2]])
 
 
 @tf.function
@@ -165,14 +147,31 @@ def dice(y_true, y_pred, smooth=1) -> float:
 
 
 @tf.function
-def jaccard_distance_loss(y_true, y_pred, smooth=100) -> float:
+def combined_dice_iou_loss(y_true, y_pred, iou_weight=1, dice_weight=1):
+    """
+    Loss function combining binary crossentropy loss, dice loss and intersection over union loss.
+
+    :param y_true: truth tensor
+    :param y_pred: prediction tensor
+    :param iou_weight: weight of the intersection over union loss
+    :param dice_weight: weight of the dice loss
+    :return: Combined loss
+    """
+    log_dice = -K.log(dice(y_true, y_pred))
+    log_iou = - K.log(iou(y_true, y_pred))
+
+    return iou_weight * log_iou + dice_weight * log_dice
+
+
+@tf.function
+def jaccard_distance_loss(y_true, y_pred, smooth=100):
     """
     Jaccard distance for semantic segmentation also known as the intersection-over-union loss.
     This implementation is adapted for semantic segmentation.
 
     :param y_true: truth tensor
     :param y_pred: prediction tensor
-    :param smooth:parameter for numerical stability to avoid divide by zero error
+    :param smooth: parameter for numerical stability to avoid divide by zero error
     :return: Jaccard loss
     """
     intersection = K.sum(K.abs(y_true * y_pred), axis=-1)

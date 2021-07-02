@@ -3,7 +3,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from glob import glob
-from unet_models import Unet, UnetPP
+from unet_models import Unet, UnetPP, UnetFT
 from datetime import datetime
 from utils import process_train_images, process_test_images, config_data_pipeline_performance, DisplayCallback
 from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
@@ -12,19 +12,20 @@ from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
-DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared/"
+DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/prepared_new/"
 BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
+BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
 TENSORBOARD_LOGS_PATH = 'D:\\DataScience\\THESIS\\models\\logs\\'
 
 # General
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 4
-BUFFER_SIZE = 1024
+BATCH_SIZE = 1
+BUFFER_SIZE = 512
 SEED = 42
 SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 1500
-EARLY_STOP_PATIENCE = 50
+EPOCHS = 300
+EARLY_STOP_PATIENCE = 20
 TRAIN_RATIO = 0.85
 VAL_RATIO = 0.15
 TEST_DATASET = False
@@ -34,9 +35,11 @@ IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 IMAGE_CHANNELS = 3
 
-# Train parameters
-STANDARD_UNET = True
-LOSS = jaccard_distance_loss
+# Model parameters
+MODEL_ARCHITECTURES = ["STANDARD_UNET", "UNETPP", "FT_UNET"]
+UNET_ARCHITECTURE = MODEL_ARCHITECTURES[2]
+LOSSES = [combined_dice_iou_loss, jaccard_distance_loss]
+LOSS = LOSSES[1]
 OPTIMIZER = tf.keras.optimizers.Adam()
 METRICS = [iou, dice]
 
@@ -130,10 +133,12 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
     :param metrics: metrics for training
     :return: Build and compiled model.
     """
-    if STANDARD_UNET:
+    if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
         model = Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
+    elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
+        model = UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
     else:
-        model = UnetPP(img_height, img_width, img_channels)
+        model = UnetFT(img_height=img_height, img_width=img_width, img_channels=img_channels)
 
     model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
 
@@ -152,8 +157,8 @@ def make_callbacks(sample_images: list, early_stop_patience: int, save_model_pat
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
     callbacks = [
         DisplayCallback(sample_images, displaying_freq=10, enable_displaying=False),
-        EarlyStopping(monitor="val_dice", patience=early_stop_patience, mode="max", verbose=1),
-        ModelCheckpoint(filepath=save_model_path, monitor="val_dice", verbose=1, save_best_only=True, mode="max"),
+        EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
+        ModelCheckpoint(filepath=save_model_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
     ]
     return callbacks
@@ -184,10 +189,12 @@ def main():
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH, False)
     samples = segmentation_dataset['train'].take(1)
 
-    if STANDARD_UNET:
+    if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
         model_path = BEST_MODEL_PATH_UNET
-    else:
+    elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
         model_path = BEST_MODEL_PATH_UNETPP
+    else:
+        model_path = BEST_MODEL_PATH_UNETFT
 
     callbacks_list = make_callbacks(sample_images=samples,
                                     early_stop_patience=EARLY_STOP_PATIENCE,
