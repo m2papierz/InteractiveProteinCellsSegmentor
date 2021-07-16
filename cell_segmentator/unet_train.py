@@ -2,17 +2,16 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from glob import glob
 from unet_models import Unet, UnetPP, UnetFT
 from datetime import datetime
-from utils import process_train_images, process_test_images, config_data_pipeline_performance, DisplayCallback
+from utils import process_train_images, config_data_pipeline_performance, DisplayCallback
 from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Paths
-DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/train/"
+DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/train/"
 BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
@@ -23,16 +22,16 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 BATCH_SIZE = 1
 BUFFER_SIZE = 512
 SEED = 42
-SEGMENTATION_IMAGE_CHANNELS = 3
-EPOCHS = 300
+EPOCHS = 500
 EARLY_STOP_PATIENCE = 20
-TRAIN_RATIO = 0.85
-VAL_RATIO = 0.15
+TRAIN_RATIO = 0.90
+VAL_RATIO = 0.1
 TEST_DATASET = False
 
 # Image parameters
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
+
 IMAGE_CHANNELS = 3
 
 # Model parameters
@@ -75,47 +74,35 @@ def parse_image(image_path: str) -> dict:
     mask_path = tf.strings.regex_replace(image_path, "image", "mask")
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.where(mask == 255, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    mask = tf.where(mask == 41, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
 
     return {'image': image, 'segmentation_mask': mask}
 
 
-def create_dataset(data_path: str, test: bool) -> tuple:
+def create_dataset(data_path: str) -> tuple:
     """
     Creates dataset for image segmentation.
 
     :param data_path: path to data dictionary
-    :param test: a boolean which if true indicates that dataset will be created with test sub-dataset
     :return: Tuple with dataset, train dataset size and validation dataset size
     """
-    dataset_size = len(glob(data_path + "image/*.png"))
+
+    full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
+    full_dataset = full_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    full_dataset = full_dataset.map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE).repeat(3)
+
+    dataset_size = tf.data.experimental.cardinality(full_dataset).numpy()
     train_dataset_size = int(TRAIN_RATIO * dataset_size)
     val_dataset_size = int(VAL_RATIO * dataset_size)
 
-    full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
     train_dataset = full_dataset.take(train_dataset_size)
     remaining = full_dataset.skip(train_dataset_size)
     val_dataset = remaining.take(val_dataset_size)
 
-    train_dataset = train_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    val_dataset = val_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = {"train": train_dataset, "val": val_dataset}
 
-    if test:
-        test_dataset = remaining.skip(val_dataset_size)
-        test_dataset = test_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        dataset = {"train": train_dataset, "val": val_dataset, "test": test_dataset}
-    else:
-        dataset = {"train": train_dataset, "val": val_dataset}
-
-    dataset['train'] = dataset['train'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    dataset['val'] = dataset['val'].map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset['train'] = config_data_pipeline_performance(dataset['train'], True, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
     dataset['val'] = config_data_pipeline_performance(dataset['val'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
-
-    if test:
-        dataset['test'] = dataset['test'].map(process_test_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        dataset['test'] = config_data_pipeline_performance(dataset['test'], False, BUFFER_SIZE, BATCH_SIZE, SEED,
-                                                           AUTOTUNE)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -186,7 +173,7 @@ def plot_history(model_history: tf.keras.callbacks.History) -> None:
 
 def main():
     print_device_info()
-    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH, False)
+    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
     samples = segmentation_dataset['train'].take(1)
 
     if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:

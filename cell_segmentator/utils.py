@@ -24,7 +24,7 @@ def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
 @tf.function
 def process_train_images(data: dict) -> tuple:
     """
-    Augment resize images and augment by flip rotations.
+    Resize and randomly augment data.
 
     :param data: dict containing an image and its mask
     :return: Processed imaged and its mask.
@@ -32,9 +32,23 @@ def process_train_images(data: dict) -> tuple:
     input_image = tf.image.resize(data['image'], (IMAGE_HEIGHT, IMAGE_WIDTH))
     input_mask = tf.image.resize(data['segmentation_mask'], (IMAGE_HEIGHT, IMAGE_WIDTH))
 
+    if tf.random.uniform(()) > 0.55:
+        input_image = tf.image.central_crop(input_image, 0.7)
+        input_mask = tf.image.central_crop(input_mask, 0.7)
+        input_image = tf.image.resize(input_image, (512, 512))
+        input_mask = tf.image.resize(input_mask, (512, 512))
+
+    if tf.random.uniform(()) > 0.5:
+        input_image = tf.image.random_brightness(input_image, 0.3)
+        input_image = tf.image.random_contrast(input_image, 0.15, 0.4)
+
     if tf.random.uniform(()) > 0.5:
         input_image = tf.image.flip_left_right(input_image)
         input_mask = tf.image.flip_left_right(input_mask)
+
+    if tf.random.uniform(()) > 0.5:
+        input_image = tf.image.flip_up_down(input_image)
+        input_mask = tf.image.flip_up_down(input_mask)
 
     input_image, input_mask = normalize_images(input_image, input_mask)
 
@@ -113,7 +127,7 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[2], mask[2], pred_mask[2]])
+        display_sample_images([image[0], mask[0], pred_mask[0]])
 
 
 @tf.function

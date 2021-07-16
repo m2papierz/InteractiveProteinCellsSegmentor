@@ -7,7 +7,7 @@ from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from utils import process_test_images, config_data_pipeline_performance
 
 # Paths
-DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/test/"
+DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/test_evaluate/"
 BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
 BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
 BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
@@ -35,7 +35,7 @@ def parse_image(image_path: str) -> dict:
     mask_path = tf.strings.regex_replace(image_path, "image", "mask")
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.where(mask == 255, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    mask = tf.where(mask == 41, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
 
     return {'image': image, 'segmentation_mask': mask}
 
@@ -49,13 +49,11 @@ def create_test_dataset(data_path: str) -> tuple:
     """
     dataset_size = len(glob(data_path + "image/*.png"))
 
-    full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
-    test_dataset = full_dataset.take(dataset_size)
+    test_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
     test_dataset = test_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    test_dataset = test_dataset.map(process_test_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     dataset = {"test": test_dataset}
-
-    dataset['test'] = dataset['test'].map(process_test_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset['test'] = config_data_pipeline_performance(dataset['test'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
 
     return dataset, dataset_size
