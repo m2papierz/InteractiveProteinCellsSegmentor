@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 
 from unet_architectures import unet_shallow, unet_pp, unet_mobilenet
 from datetime import datetime
-from utils.utils import process_train_images, config_data_pipeline_performance, DisplayCallback
+from utils.image_processing import process_train_images
+from utils.callback import DisplayCallback
 from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.configuaration import config_data_pipeline_performance
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -171,7 +173,7 @@ def plot_history(model_history: tf.keras.callbacks.History) -> None:
     plt.show()
 
 
-def main():
+if __name__ == '__main__':
     print_device_info()
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
     samples = segmentation_dataset['train'].take(1)
@@ -195,7 +197,3 @@ def main():
                              batch_size=BATCH_SIZE, epochs=EPOCHS, callbacks=callbacks_list)
 
     plot_history(history)
-
-
-if __name__ == '__main__':
-    main()

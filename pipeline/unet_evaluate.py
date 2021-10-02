@@ -2,9 +2,10 @@ import numpy as np
 import tensorflow as tf
 
 from glob import glob
-from utils.utils import show_predictions
+from utils.callback import show_predictions
 from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
-from utils.utils import process_test_images, config_data_pipeline_performance
+from utils.image_processing import process_test_images
+from utils.configuaration import config_data_pipeline_performance
 
 # Paths
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/test_evaluate/"
