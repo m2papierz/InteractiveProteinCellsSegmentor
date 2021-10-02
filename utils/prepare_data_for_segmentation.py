@@ -22,7 +22,7 @@ def merge_channels(data_dir: str, n_channels: int) -> np.ndarray:
     """
     Read and stack individual images of given number of channels into RGB image.
 
-    :param data_dir: data directory
+    :param data_dir: architectures_unet directory
     :param n_channels: number of channels to be stacked
     :return: Stacked image
     """
@@ -91,10 +91,10 @@ def save_processed_masks(masks_path: str, save_mask_path: str) -> None:
 
 def create_dataset_csv(data_path: str, image_path: str, mask_path: str, csv_save_path: str) -> None:
     """
-    Create *.txt file for easy accessing segmentation data. Data is organised
+    Create *.txt file for easy accessing segmentation architectures_unet. Data is organised
     in three columns: image_id, image_path, mask_path.
 
-    :param data_path: data directory
+    :param data_path: architectures_unet directory
     :param image_path: images directory
     :param mask_path: masks directory
     :param csv_save_path: directory to save csv file

@@ -2,10 +2,10 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from unet_models import Unet, UnetPP, UnetFT
+from architectures_unet import shallow_unet, unet_pp, mobilenet_unet
 from datetime import datetime
-from utils import process_train_images, config_data_pipeline_performance, DisplayCallback
-from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.utils import process_train_images, config_data_pipeline_performance, DisplayCallback
+from utils.utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -83,7 +83,7 @@ def create_dataset(data_path: str) -> tuple:
     """
     Creates dataset for image segmentation.
 
-    :param data_path: path to data dictionary
+    :param data_path: path to architectures_unet dictionary
     :return: Tuple with dataset, train dataset size and validation dataset size
     """
 
@@ -121,11 +121,11 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
     :return: Build and compiled model.
     """
     if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
-        model = Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = shallow_unet.Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
     elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
-        model = UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = unet_pp.UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
     else:
-        model = UnetFT(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = mobilenet_unet.UnetMobilenet(img_height=img_height, img_width=img_width, img_channels=img_channels)
 
     model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
 

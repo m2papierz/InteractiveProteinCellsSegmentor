@@ -24,7 +24,7 @@ def normalize_images(input_image: tf.Tensor, input_mask: tf.Tensor) -> tuple:
 @tf.function
 def process_train_images(data: dict) -> tuple:
     """
-    Resize and randomly augment data.
+    Resize and randomly augment architectures_unet.
 
     :param data: dict containing an image and its mask
     :return: Processed imaged and its mask.
@@ -74,7 +74,7 @@ def process_test_images(data: dict) -> tuple:
 def config_data_pipeline_performance(dataset: tf.data.Dataset, training: bool, buffer_size: int, batch_size: int,
                                      seed: int, autotune: int) -> tf.data.Dataset:
     """
-    Configure the data pipeline for its performance enhancement.
+    Configure the architectures_unet pipeline for its performance enhancement.
 
     :param dataset: dataset to be configured
     :param training: a boolean which if true indicates that the dataset set is the training one

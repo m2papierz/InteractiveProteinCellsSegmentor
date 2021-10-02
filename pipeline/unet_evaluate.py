@@ -2,9 +2,9 @@ import numpy as np
 import tensorflow as tf
 
 from glob import glob
-from utils import show_predictions
-from utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
-from utils import process_test_images, config_data_pipeline_performance
+from utils.utils import show_predictions
+from utils.utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.utils import process_test_images, config_data_pipeline_performance
 
 # Paths
 DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/test_evaluate/"
@@ -44,7 +44,7 @@ def create_test_dataset(data_path: str) -> tuple:
     """
     Creates dataset for image segmentation.
 
-    :param data_path: path to data dictionary
+    :param data_path: path to architectures_unet dictionary
     :return: Tuple with dataset, train dataset size and validation dataset size
     """
     dataset_size = len(glob(data_path + "image/*.png"))
