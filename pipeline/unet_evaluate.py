@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from glob import glob
 from utils.utils import show_predictions
-from utils.utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from utils.utils import process_test_images, config_data_pipeline_performance
 
 # Paths

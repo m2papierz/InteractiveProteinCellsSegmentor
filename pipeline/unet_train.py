@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from unet_architectures import unet_shallow, unet_pp, unet_mobilenet
 from datetime import datetime
 from utils.utils import process_train_images, config_data_pipeline_performance, DisplayCallback
-from utils.utils import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
