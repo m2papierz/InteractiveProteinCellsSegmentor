@@ -1,0 +1,32 @@
+# Paths
+DATA_PATH: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/"
+DATA_PATH_TRAIN: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/train/"
+DATA_PATH_TEST: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/test_evaluate/"
+MODELS_PATH: "D:/DataScience/THESIS/models/"
+UNET_MODEL_PATH: "unet.hdf5"
+UNETPP_MODEL_PATH: "unet_pp.hdf5"
+UNET_MOBILENET_MODEL_PATH: "unet_mobilenet.hdf5"
+TENSORBOARD_LOGS_PATH: "D:\\DataScience\\THESIS\\models\\logs\\"
+
+# Train parameters
+BATCH_SIZE: 4
+EPOCHS: 300
+EARLY_STOP_PATIENCE: 50
+TRAIN_RATIO: 0.90
+VAL_RATIO: 0.1
+BUFFER_SIZE: 512
+SEED: 42
+
+# Image parameters
+IMAGE_HEIGHT: 512
+IMAGE_WIDTH: 512
+IMAGE_CHANNELS: 3
+
+# Model parameters
+MODELS: ["UNET_SHALLOW", "UNET_PP", "UNET_MOBILENET"]
+UNET_SHALLOW: True
+UNET_PP: False
+UNET_MOBILENET: False
+OPTIMIZER: "Adam"
+COMBINED_LOSS: False
+JACCARD_LOSS: True
