@@ -2,47 +2,15 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from unet_architectures import unet_shallow, unet_pp, unet_mobilenet
 from datetime import datetime
 from utils.image_processing import process_train_images
 from utils.callback import DisplayCallback
 from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
-from utils.configuaration import config_data_pipeline_performance
+from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-
-# Paths
-DATA_PATH = "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/train/"
-BEST_MODEL_PATH_UNET = "D:/DataScience/THESIS/models/unet_best_model.hdf5"
-BEST_MODEL_PATH_UNETPP = "D:/DataScience/THESIS/models/unetpp_best_model.hdf5"
-BEST_MODEL_PATH_UNETFT = "D:/DataScience/THESIS/models/unetft_best_model.hdf5"
-TENSORBOARD_LOGS_PATH = 'D:\\DataScience\\THESIS\\models\\logs\\'
-
-# General
-AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 1
-BUFFER_SIZE = 512
-SEED = 42
-EPOCHS = 500
-EARLY_STOP_PATIENCE = 20
-TRAIN_RATIO = 0.90
-VAL_RATIO = 0.1
-TEST_DATASET = False
-
-# Image parameters
-IMAGE_HEIGHT = 512
-IMAGE_WIDTH = 512
-
-IMAGE_CHANNELS = 3
-
-# Model parameters
-MODEL_ARCHITECTURES = ["STANDARD_UNET", "UNETPP", "FT_UNET"]
-UNET_ARCHITECTURE = MODEL_ARCHITECTURES[2]
-LOSSES = [combined_dice_iou_loss, jaccard_distance_loss]
-LOSS = LOSSES[1]
-OPTIMIZER = tf.keras.optimizers.Adam()
-METRICS = [iou, dice]
+from unet_architectures import unet_shallow, unet_pp, unet_mobilenet
 
 
 def print_device_info():
@@ -109,11 +77,12 @@ def create_dataset(data_path: str) -> tuple:
     return dataset, train_dataset_size, val_dataset_size
 
 
-def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.keras.losses.Loss,
+def build_model(model_arch: str, img_height: int, img_width: int, img_channels: int, loss: tf.keras.losses.Loss,
                 optimizer: tf.keras.optimizers.Optimizer, metrics: list):
     """
     Build and compile model.
 
+    :param model_arch: name of the u-net model to be used
     :param img_height: height of the image
     :param img_width: width of the image
     :param img_channels: number of image channels
@@ -122,12 +91,14 @@ def build_model(img_height: int, img_width: int, img_channels: int, loss: tf.ker
     :param metrics: metrics for training
     :return: Build and compiled model.
     """
-    if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
+    if model_arch == "UNET_SHALLOW":
         model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
-    elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
+    elif model_arch == "UNET_PP":
         model = unet_pp.UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
-    else:
+    elif model_arch == "UNET_MOBILENET":
         model = unet_mobilenet.UnetMobilenet(img_height=img_height, img_width=img_width, img_channels=img_channels)
+    else:
+        raise NotImplementedError()
 
     model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
 
@@ -175,25 +146,79 @@ def plot_history(model_history: tf.keras.callbacks.History) -> None:
 
 if __name__ == '__main__':
     print_device_info()
+
+    config = read_yaml_file("./config.yaml")
+
+    # Paths
+    DATA_PATH = config["DATA_PATH_TRAIN"]
+    MODELS_PATH = config["MODELS_PATH"]
+    UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
+    UNETPP_MODEL_PATH = config["UNETPP_MODEL_PATH"]
+    UNET_MOBILENET_MODEL_PATH = config["UNET_MOBILENET_MODEL_PATH"]
+    TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
+
+    # Train parameters
+    BATCH_SIZE = config["BATCH_SIZE"]
+    BUFFER_SIZE = config["BUFFER_SIZE"]
+    SEED = config["SEED"]
+    EPOCHS = config["EPOCHS"]
+    EARLY_STOP_PATIENCE = config["EARLY_STOP_PATIENCE"]
+    TRAIN_RATIO = config["TRAIN_RATIO"]
+    VAL_RATIO = config["VAL_RATIO"]
+    AUTOTUNE = tf.data.experimental.AUTOTUNE
+
+    # Image parameters
+    IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
+    IMAGE_WIDTH = config["IMAGE_WIDTH"]
+    IMAGE_CHANNELS = config["IMAGE_CHANNELS"]
+
+    # Model parameters
+    MODELS = config["MODELS"]
+    UNET_SHALLOW = config["UNET_SHALLOW"]
+    UNET_PP = config["UNET_PP"]
+    UNET_MOBILENET = config["UNET_MOBILENET"]
+    OPTIMIZER = config["OPTIMIZER"]
+    METRICS = [iou, dice]
+
+    # Loss functions
+    LOSSES = [combined_dice_iou_loss, jaccard_distance_loss]
+    COMBINED_LOSS = config["COMBINED_LOSS"]
+    JACCARD_LOSS = config["JACCARD_LOSS"]
+
+    if UNET_SHALLOW:
+        model_path = MODELS_PATH + UNET_MODEL_PATH
+        model_name = MODELS[0]
+    elif UNET_PP:
+        model_path = MODELS_PATH + UNETPP_MODEL_PATH
+        model_name = MODELS[1]
+    elif UNET_MOBILENET:
+        model_path = MODELS_PATH + UNET_MOBILENET_MODEL_PATH
+        model_name = MODELS[2]
+    else:
+        raise NotImplementedError()
+
+    if COMBINED_LOSS:
+        LOSS = LOSSES[0]
+    elif JACCARD_LOSS:
+        LOSS = LOSSES[1]
+    else:
+        raise NotImplementedError()
+
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
     samples = segmentation_dataset['train'].take(1)
 
-    if UNET_ARCHITECTURE == MODEL_ARCHITECTURES[0]:
-        model_path = BEST_MODEL_PATH_UNET
-    elif UNET_ARCHITECTURE == MODEL_ARCHITECTURES[1]:
-        model_path = BEST_MODEL_PATH_UNETPP
-    else:
-        model_path = BEST_MODEL_PATH_UNETFT
-
-    callbacks_list = make_callbacks(sample_images=samples,
-                                    early_stop_patience=EARLY_STOP_PATIENCE,
+    callbacks_list = make_callbacks(sample_images=samples, early_stop_patience=EARLY_STOP_PATIENCE,
                                     save_model_path=model_path)
 
-    unet = build_model(img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT, img_channels=IMAGE_CHANNELS, loss=LOSS,
-                       optimizer=OPTIMIZER, metrics=METRICS)
+    unet = build_model(model_arch=model_name, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT,
+                       img_channels=IMAGE_CHANNELS, loss=LOSS,  optimizer=OPTIMIZER, metrics=METRICS)
 
     with tf.device("device:GPU:0"):
-        history = unet.train(dataset=segmentation_dataset, train_size=train_size, val_size=val_size,
-                             batch_size=BATCH_SIZE, epochs=EPOCHS, callbacks=callbacks_list)
+        history = unet.train(dataset=segmentation_dataset,
+                             train_size=train_size,
+                             val_size=val_size,
+                             batch_size=BATCH_SIZE,
+                             epochs=EPOCHS,
+                             callbacks=callbacks_list)
 
     plot_history(history)
