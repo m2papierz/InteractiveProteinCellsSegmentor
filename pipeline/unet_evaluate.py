@@ -16,13 +16,14 @@ def parse_image(image_path: str) -> dict:
     :return: Dictionary mapping an image and its mask.
     """
     image = tf.io.read_file(image_path)
-    image = tf.image.decode_png(image, channels=3)
-    image = tf.image.convert_image_dtype(image, tf.uint8)
+    image = tf.image.decode_png(image)
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     mask_path = tf.strings.regex_replace(image_path, "image", "mask")
     mask = tf.io.read_file(mask_path)
-    mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.where(mask == 41, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    mask = tf.image.decode_png(mask)
+    mask = tf.image.convert_image_dtype(mask, dtype=tf.float32)
+    mask = tf.image.resize(mask, (512, 512))
 
     return {'image': image, 'segmentation_mask': mask}
 

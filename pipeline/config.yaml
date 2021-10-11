@@ -1,7 +1,13 @@
-# Paths
-DATA_PATH: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/"
-DATA_PATH_TRAIN: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/train/"
-DATA_PATH_TEST: "D:/DataScience/THESIS/Data/HPA_segmentation/FINAL_DATA/test_evaluate/"
+# Paths to data
+DATA_PATH: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/original/"
+IMAGES_PATH_TRAIN: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/train/image/"
+MASKS_PATH_TRAIN: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/train/mask/"
+IMAGES_PATH_TEST: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/test/"
+CSV_PATH: "D:/DataScience/THESIS/Data/HPA_segmentation/prepared/data_csv.txt"
+DATA_PATH_TRAIN: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/train/"
+DATA_PATH_TEST: "D:/DataScience/THESIS/Data/HPA_segmentation/segmentation_data/test/"
+
+# Paths to models
 MODELS_PATH: "D:/DataScience/THESIS/models/"
 UNET_MODEL_PATH: "unet.hdf5"
 UNETPP_MODEL_PATH: "unet_pp.hdf5"
@@ -9,12 +15,12 @@ UNET_MOBILENET_MODEL_PATH: "unet_mobilenet.hdf5"
 TENSORBOARD_LOGS_PATH: "D:\\DataScience\\THESIS\\models\\logs\\"
 
 # Train parameters
-BATCH_SIZE: 4
+BATCH_SIZE: 1
 EPOCHS: 300
 EARLY_STOP_PATIENCE: 50
 TRAIN_RATIO: 0.90
 VAL_RATIO: 0.1
-BUFFER_SIZE: 512
+BUFFER_SIZE: 256
 SEED: 42
 
 # Image parameters
