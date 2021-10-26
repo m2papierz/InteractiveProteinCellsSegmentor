@@ -4,8 +4,8 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Conv2D, Conv2DTranspose, MaxPooling2D
 from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.models import Model
 from tensorflow.keras.layers import add, concatenate
+from tensorflow.keras.models import Model
 
 
 def conv2d_bn(x, filters, num_row, num_col, activation="relu"):

@@ -22,9 +22,9 @@ def display_sample_images(images_list: list) -> None:
     plt.show()
 
 
-def process_prediction(prediction: float) -> tf.Tensor:
+def create_mask(prediction: float) -> tf.Tensor:
     """Temporary function for model evaluation test."""
-    processed = tf.where(prediction >= 0.95, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    processed = tf.where(prediction >= 0.5, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
     return processed
 
 
@@ -38,7 +38,7 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[0], mask[0], pred_mask[0]])
+        display_sample_images([image[1], mask[1], pred_mask[1]])
 
 
 class DisplayCallback(tf.keras.callbacks.Callback):

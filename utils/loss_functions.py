@@ -33,23 +33,6 @@ def dice(y_true, y_pred, smooth=1) -> float:
 
 
 @tf.function
-def combined_dice_iou_loss(y_true, y_pred, iou_weight=1, dice_weight=1):
-    """
-    Loss function combining binary crossentropy loss, dice loss and intersection over union loss.
-
-    :param y_true: truth tensor
-    :param y_pred: prediction tensor
-    :param iou_weight: weight of the intersection over union loss
-    :param dice_weight: weight of the dice loss
-    :return: Combined loss
-    """
-    log_dice = -K.log(dice(y_true, y_pred))
-    log_iou = - K.log(iou(y_true, y_pred))
-
-    return iou_weight * log_iou + dice_weight * log_dice
-
-
-@tf.function
 def jaccard_distance_loss(y_true, y_pred, smooth=100):
     """
     Jaccard distance for semantic segmentation also known as the intersection-over-union loss.

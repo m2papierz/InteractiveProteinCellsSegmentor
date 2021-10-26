@@ -1,6 +1,5 @@
 import os
 import sys
-import numpy as np
 import tensorflow as tf
 
 from tqdm import tqdm
@@ -37,20 +36,14 @@ def preprocess_mask(mask_path: str, save_path: str, file_name: str) -> None:
     """
     Processes mask image.
 
-    Note:
-        Originally mask tensor does not have binary values. Value equal to 255
-        represents cell instances and  that is why conversion of mask tensor values
-        into 0 and 1 is needed.
-
     :param mask_path: path to mask
     :param save_path: path to save mask
     :param file_name: name of the image
     """
 
     mask_img = tf.io.read_file(mask_path)
-    mask_img = tf.image.decode_png(mask_img, channels=3)
+    mask_img = tf.image.decode_png(mask_img, channels=1)
     mask_img = tf.image.resize(mask_img, (512, 512))
-    mask_img = tf.where(mask_img == 255, np.dtype('float32').type(1), np.dtype('float32').type(0))
     tf.keras.preprocessing.image.save_img(save_path + f"/{file_name}.png", mask_img, data_format="channels_last")
 
 
@@ -93,6 +86,10 @@ def save_processed_masks(masks_path: str, save_path_train: str) -> None:
 
 
 if __name__ == '__main__':
+    physical_devices = tf.config.list_physical_devices('GPU')
+    for device in physical_devices:
+        tf.config.experimental.set_memory_growth(device, True)
+
     config = read_yaml_file("./config.yaml")
 
     DATA_PATH = config["DATA_PATH"]
