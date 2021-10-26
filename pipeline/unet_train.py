@@ -1,15 +1,16 @@
 import tensorflow as tf
+import numpy as np
 import matplotlib.pyplot as plt
 
 from datetime import datetime
 from utils.image_processing import process_train_images
 from utils.callback import DisplayCallback
-from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.loss_functions import iou, dice, jaccard_distance_loss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-from unet_architectures import unet_shallow, unet_pp, unet_mobilenet
+from unet_architectures import unet_shallow, unet_pp, unet_mobilenet, unet_dc
 
 
 def print_device_info():
@@ -37,14 +38,13 @@ def parse_image(image_path: str) -> dict:
     :return: Dictionary mapping an image and its mask.
     """
     image = tf.io.read_file(image_path)
-    image = tf.image.decode_png(image)
+    image = tf.image.decode_png(image, channels=3)
     image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     mask_path = tf.strings.regex_replace(image_path, "image", "mask")
     mask = tf.io.read_file(mask_path)
-    mask = tf.image.decode_png(mask)
-    mask = tf.image.convert_image_dtype(mask, dtype=tf.float32)
-    mask = tf.image.resize(mask, (512, 512))
+    mask = tf.image.decode_png(mask, channels=1)
+    mask = tf.where(mask == 41, np.dtype('float32').type(1), np.dtype('float32').type(0))
 
     return {'image': image, 'segmentation_mask': mask}
 
@@ -97,6 +97,8 @@ def build_model(model_arch: str, img_height: int, img_width: int, img_channels: 
         model = unet_pp.UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
     elif model_arch == "UNET_MOBILENET":
         model = unet_mobilenet.UnetMobilenet(img_height=img_height, img_width=img_width, img_channels=img_channels)
+    elif model_arch == "UNET_DC":
+        model = unet_dc.UnetDC(img_height=img_height, img_width=img_width, img_channels=img_channels)
     else:
         raise NotImplementedError()
 
@@ -155,6 +157,7 @@ if __name__ == '__main__':
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
     UNETPP_MODEL_PATH = config["UNETPP_MODEL_PATH"]
     UNET_MOBILENET_MODEL_PATH = config["UNET_MOBILENET_MODEL_PATH"]
+    UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
     TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
 
     # Train parameters
@@ -177,13 +180,9 @@ if __name__ == '__main__':
     UNET_SHALLOW = config["UNET_SHALLOW"]
     UNET_PP = config["UNET_PP"]
     UNET_MOBILENET = config["UNET_MOBILENET"]
+    UNET_DC = config["UNET_DC"]
     OPTIMIZER = config["OPTIMIZER"]
     METRICS = [iou, dice]
-
-    # Loss functions
-    LOSSES = [combined_dice_iou_loss, jaccard_distance_loss]
-    COMBINED_LOSS = config["COMBINED_LOSS"]
-    JACCARD_LOSS = config["JACCARD_LOSS"]
 
     if UNET_SHALLOW:
         model_path = MODELS_PATH + UNET_MODEL_PATH
@@ -194,20 +193,19 @@ if __name__ == '__main__':
     elif UNET_MOBILENET:
         model_path = MODELS_PATH + UNET_MOBILENET_MODEL_PATH
         model_name = MODELS[2]
+    elif UNET_DC:
+        model_path = MODELS_PATH + UNET_DC_MODEL_PATH
+        model_name = MODELS[3]
     else:
         raise NotImplementedError()
 
-    if COMBINED_LOSS:
-        LOSS = LOSSES[0]
-    elif JACCARD_LOSS:
-        LOSS = LOSSES[1]
-    else:
-        raise NotImplementedError()
+    LOSS = jaccard_distance_loss
 
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
     samples = segmentation_dataset['train'].take(1)
 
-    callbacks_list = make_callbacks(sample_images=samples, early_stop_patience=EARLY_STOP_PATIENCE,
+    callbacks_list = make_callbacks(sample_images=samples,
+                                    early_stop_patience=EARLY_STOP_PATIENCE,
                                     save_model_path=model_path)
 
     unet = build_model(model_arch=model_name, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT,

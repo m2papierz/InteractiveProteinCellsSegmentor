@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from glob import glob
 from utils.callback import show_predictions
-from utils.loss_functions import combined_dice_iou_loss, iou, dice, jaccard_distance_loss
+from utils.loss_functions import iou, dice, jaccard_distance_loss
 from utils.image_processing import process_test_images
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 
@@ -16,14 +16,13 @@ def parse_image(image_path: str) -> dict:
     :return: Dictionary mapping an image and its mask.
     """
     image = tf.io.read_file(image_path)
-    image = tf.image.decode_png(image)
+    image = tf.image.decode_png(image, channels=3)
     image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     mask_path = tf.strings.regex_replace(image_path, "image", "mask")
     mask = tf.io.read_file(mask_path)
-    mask = tf.image.decode_png(mask)
-    mask = tf.image.convert_image_dtype(mask, dtype=tf.float32)
-    mask = tf.image.resize(mask, (512, 512))
+    mask = tf.image.decode_png(mask, channels=1)
+    mask = tf.where(mask == 41, np.dtype('float32').type(1), np.dtype('float32').type(0))
 
     return {'image': image, 'segmentation_mask': mask}
 
@@ -73,6 +72,7 @@ if __name__ == '__main__':
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
     UNETPP_MODEL_PATH = config["UNETPP_MODEL_PATH"]
     UNET_MOBILENET_MODEL_PATH = config["UNET_MOBILENET_MODEL_PATH"]
+    UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
 
     BATCH_SIZE = config["BATCH_SIZE"]
     BUFFER_SIZE = config["BUFFER_SIZE"]
@@ -82,11 +82,11 @@ if __name__ == '__main__':
     SHALLOW_UNET = config["UNET_SHALLOW"]
     UNET_PP = config["UNET_PP"]
     UNET_MOBILENET = config["UNET_MOBILENET"]
+    UNET_DC = config["UNET_DC"]
 
     segmentation_dataset, dataset_size = create_test_dataset(DATA_PATH)
     samples = segmentation_dataset['test'].take(1)
     custom_objects = {jaccard_distance_loss.__name__: jaccard_distance_loss,
-                      combined_dice_iou_loss.__name__: combined_dice_iou_loss,
                       iou.__name__: iou,
                       dice.__name__: dice}
 
@@ -98,6 +98,9 @@ if __name__ == '__main__':
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     elif UNET_MOBILENET:
         model_path = MODELS_PATH + UNET_MOBILENET_MODEL_PATH
+        best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+    elif UNET_DC:
+        model_path = MODELS_PATH + UNET_DC_MODEL_PATH
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     else:
         raise NotImplementedError()

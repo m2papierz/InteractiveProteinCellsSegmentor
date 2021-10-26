@@ -9,6 +9,7 @@ from tensorflow.keras.layers import concatenate
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.models import Model
+from tensorflow.keras.regularizers import l2
 
 
 def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regularizer_factor: float,
