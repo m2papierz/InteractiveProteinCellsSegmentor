@@ -12,19 +12,22 @@ def display_sample_images(images_list: list) -> None:
     :return: None
     """
     plt.figure(figsize=(18, 18))
-    title = ['Input image', 'True mask', 'Prediction mask', 'Processed prediction mask']
+    title = ['Input image', 'Scribble', 'True mask', 'Prediction mask']
 
     for i in range(len(images_list)):
         plt.subplot(1, len(images_list), i + 1)
         plt.title(title[i])
-        plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
+        if i == 0:
+            plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
+        else:
+            plt.imshow(images_list[i])
         plt.axis('off')
     plt.show()
 
 
-def process_prediction(prediction: float) -> tf.Tensor:
+def create_mask(prediction: float) -> tf.Tensor:
     """Temporary function for model evaluation test."""
-    processed = tf.where(prediction >= 0.95, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
+    processed = tf.where(prediction >= 0.5, np.dtype('uint8').type(1), np.dtype('uint8').type(0))
     return processed
 
 
@@ -38,7 +41,7 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[0], mask[0], pred_mask[0]])
+        display_sample_images([image[0][:, :, :3], image[0][:, :, 3], mask[0], pred_mask[0]])
 
 
 class DisplayCallback(tf.keras.callbacks.Callback):
