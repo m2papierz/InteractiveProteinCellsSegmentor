@@ -1,52 +1,15 @@
 import tensorflow as tf
-import numpy as np
 import matplotlib.pyplot as plt
 
 from datetime import datetime
-from utils.image_processing import process_train_images
 from utils.callback import DisplayCallback
-from utils.loss_functions import iou, dice, jaccard_distance_loss
+from utils.loss_and_metrics import iou, dice, jaccard_distance_loss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
+from utils.image_processing import parse_image
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-from unet_architectures import unet_shallow, unet_pp, unet_mobilenet, unet_dc
-
-
-def print_device_info():
-    """
-    Function printing tensorflow device info.
-
-    :return: None
-    """
-    print("Tensorflow version: ", tf.__version__)
-
-    if tf.test.is_built_with_cuda():
-        physical_device = tf.config.list_physical_devices('GPU')
-        tf.config.experimental.set_memory_growth(physical_device[0], True)
-        print("Num GPUs Available: ", len(physical_device))
-        print("Tensorflow built with CUDA (GPU) support.")
-    else:
-        print("Tensorflow is NOT built with CUDA (GPU) support.")
-
-
-def parse_image(image_path: str) -> dict:
-    """
-    Load an image and its mask.
-
-    :param image_path: path to the image
-    :return: Dictionary mapping an image and its mask.
-    """
-    image = tf.io.read_file(image_path)
-    image = tf.image.decode_png(image, channels=3)
-    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-
-    mask_path = tf.strings.regex_replace(image_path, "image", "mask")
-    mask = tf.io.read_file(mask_path)
-    mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.where(mask == 41, np.dtype('float32').type(1), np.dtype('float32').type(0))
-
-    return {'image': image, 'segmentation_mask': mask}
+from unet_architectures import unet_shallow, unet_pp, unet_dc, unet_dpn
 
 
 def create_dataset(data_path: str) -> tuple:
@@ -59,7 +22,6 @@ def create_dataset(data_path: str) -> tuple:
 
     full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
     full_dataset = full_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    full_dataset = full_dataset.map(process_train_images, num_parallel_calls=tf.data.experimental.AUTOTUNE).repeat(3)
 
     dataset_size = tf.data.experimental.cardinality(full_dataset).numpy()
     train_dataset_size = int(TRAIN_RATIO * dataset_size)
@@ -95,10 +57,10 @@ def build_model(model_arch: str, img_height: int, img_width: int, img_channels: 
         model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
     elif model_arch == "UNET_PP":
         model = unet_pp.UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
-    elif model_arch == "UNET_MOBILENET":
-        model = unet_mobilenet.UnetMobilenet(img_height=img_height, img_width=img_width, img_channels=img_channels)
     elif model_arch == "UNET_DC":
         model = unet_dc.UnetDC(img_height=img_height, img_width=img_width, img_channels=img_channels)
+    elif model_arch == "UNET_DPN":
+        model = unet_dpn.UnetDPN(img_height=img_height, img_width=img_width, img_channels=img_channels)
     else:
         raise NotImplementedError()
 
@@ -147,8 +109,6 @@ def plot_history(model_history: tf.keras.callbacks.History) -> None:
 
 
 if __name__ == '__main__':
-    print_device_info()
-
     config = read_yaml_file("./config.yaml")
 
     # Paths
@@ -156,8 +116,8 @@ if __name__ == '__main__':
     MODELS_PATH = config["MODELS_PATH"]
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
     UNETPP_MODEL_PATH = config["UNETPP_MODEL_PATH"]
-    UNET_MOBILENET_MODEL_PATH = config["UNET_MOBILENET_MODEL_PATH"]
     UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
+    UNET_DPN_MODEL_PATH = config["UNET_DPN_MODEL_PATH"]
     TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
 
     # Train parameters
@@ -173,14 +133,14 @@ if __name__ == '__main__':
     # Image parameters
     IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
     IMAGE_WIDTH = config["IMAGE_WIDTH"]
-    IMAGE_CHANNELS = config["IMAGE_CHANNELS"]
+    INPUT_CHANNELS = config["INPUT_CHANNELS"]
 
     # Model parameters
     MODELS = config["MODELS"]
     UNET_SHALLOW = config["UNET_SHALLOW"]
     UNET_PP = config["UNET_PP"]
-    UNET_MOBILENET = config["UNET_MOBILENET"]
     UNET_DC = config["UNET_DC"]
+    UNET_DPN = config["UNET_DPN"]
     OPTIMIZER = config["OPTIMIZER"]
     METRICS = [iou, dice]
 
@@ -190,11 +150,11 @@ if __name__ == '__main__':
     elif UNET_PP:
         model_path = MODELS_PATH + UNETPP_MODEL_PATH
         model_name = MODELS[1]
-    elif UNET_MOBILENET:
-        model_path = MODELS_PATH + UNET_MOBILENET_MODEL_PATH
-        model_name = MODELS[2]
     elif UNET_DC:
         model_path = MODELS_PATH + UNET_DC_MODEL_PATH
+        model_name = MODELS[2]
+    elif UNET_DPN:
+        model_path = MODELS_PATH + UNET_DPN_MODEL_PATH
         model_name = MODELS[3]
     else:
         raise NotImplementedError()
@@ -209,7 +169,7 @@ if __name__ == '__main__':
                                     save_model_path=model_path)
 
     unet = build_model(model_arch=model_name, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT,
-                       img_channels=IMAGE_CHANNELS, loss=LOSS,  optimizer=OPTIMIZER, metrics=METRICS)
+                       img_channels=INPUT_CHANNELS, loss=LOSS,  optimizer=OPTIMIZER, metrics=METRICS)
 
     with tf.device("device:GPU:0"):
         history = unet.train(dataset=segmentation_dataset,

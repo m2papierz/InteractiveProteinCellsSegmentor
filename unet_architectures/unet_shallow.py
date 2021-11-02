@@ -25,19 +25,19 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regu
     :return: Output tensor of two convolutional layers
     """
     # First layer
-    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size),
+    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_regularizer=l2(regularizer_factor),
                kernel_initializer='he_normal', padding='same')(input_tensor)
     if batch_norm:
         x = BatchNormalization()(x)
 
-    x = Activation('elu')(x)
+    x = Activation('relu')(x)
 
     # Second layer
-    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size),
+    x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_regularizer=l2(regularizer_factor),
                kernel_initializer='he_normal', padding='same')(x)
     if batch_norm:
         x = BatchNormalization()(x)
-    x = Activation('elu')(x)
+    x = Activation('relu')(x)
 
     return x
 

@@ -10,7 +10,7 @@ from tensorflow.keras.models import Model
 
 def conv2d_bn(x, filters, num_row, num_col, activation="relu"):
     """
-    2D Convolutional layers
+    2D Convolutional layer.
 
     :param x: input layer
     :param filters: number of filters
@@ -20,32 +20,13 @@ def conv2d_bn(x, filters, num_row, num_col, activation="relu"):
     :returns: output layer
     """
 
-    x = Conv2D(filters, (num_row, num_col), strides=(1, 1), padding="same", use_bias=False)(x)
-    x = BatchNormalization(axis=3, scale=False)(x)
+    x = Conv2D(filters, (num_row, num_col), strides=(1, 1), padding="same", kernel_initializer="he_normal")(x)
+    x = BatchNormalization(axis=3)(x)
 
     if activation is None:
         return x
-
-    x = Activation(activation)(x)
-
-    return x
-
-
-def trans_conv2d_bn(x, filters, num_row, num_col):
-    """
-    2D Transposed Convolutional layers
-
-    :param x: input layer
-    :param filters: number of filters
-    :param num_row: number of rows in filters
-    :param num_col: number of columns in filters
-    :returns: output layer
-    """
-
-    x = Conv2DTranspose(filters, (num_row, num_col), strides=(2, 2), padding="same")(x)
-    x = BatchNormalization(axis=3, scale=False)(x)
-
-    return x
+    else:
+        return Activation(activation)(x)
 
 
 def dual_channel_block(input_layer, n_filters, alpha=1.67):
@@ -60,26 +41,23 @@ def dual_channel_block(input_layer, n_filters, alpha=1.67):
 
     W = alpha * n_filters
 
-    conv3x3_1 = conv2d_bn(x=input_layer, filters=int(W * 0.167), num_row=3, num_col=3, activation='relu')
+    x_1_1 = conv2d_bn(x=input_layer, filters=int(W * 0.167), num_row=3, num_col=3, activation='relu')
+    x_1_2 = conv2d_bn(x=x_1_1, filters=int(W * 0.333), num_row=3, num_col=3, activation='relu')
+    x_1_3 = conv2d_bn(x=x_1_2, filters=int(W * 0.5), num_row=3, num_col=3, activation='relu')
 
-    conv5x5_1 = conv2d_bn(x=conv3x3_1, filters=int(W * 0.333), num_row=3, num_col=3, activation='relu')
-
-    conv7x7_1 = conv2d_bn(x=conv5x5_1, filters=int(W * 0.5), num_row=3, num_col=3, activation='relu')
-
-    out1 = concatenate([conv3x3_1, conv5x5_1, conv7x7_1], axis=3)
+    out1 = concatenate([x_1_1, x_1_2, x_1_3], axis=3)
     out1 = BatchNormalization(axis=3)(out1)
 
-    conv3x3_2 = conv2d_bn(x=input_layer, filters=int(W * 0.167), num_row=3, num_col=3, activation='relu')
+    x_2_1 = conv2d_bn(x=input_layer, filters=int(W * 0.167), num_row=3, num_col=3, activation='relu')
+    x_2_2 = conv2d_bn(x=x_2_1, filters=int(W * 0.333), num_row=3, num_col=3, activation='relu')
+    x_2_3 = conv2d_bn(x=x_2_2, filters=int(W * 0.5), num_row=3, num_col=3, activation='relu')
 
-    conv5x5_2 = conv2d_bn(x=conv3x3_2, filters=int(W * 0.333), num_row=3, num_col=3, activation='relu')
-
-    conv7x7_2 = conv2d_bn(x=conv5x5_2, filters=int(W * 0.5), num_row=3, num_col=3, activation='relu')
-    out2 = concatenate([conv3x3_2, conv5x5_2, conv7x7_2], axis=3)
+    out2 = concatenate([x_2_1, x_2_2, x_2_3], axis=3)
     out2 = BatchNormalization(axis=3)(out2)
 
     out = add([out1, out2])
-    out = Activation('relu')(out)
     out = BatchNormalization(axis=3)(out)
+    out = Activation('relu')(out)
 
     return out
 
@@ -94,28 +72,26 @@ def residual_path(input_layer, n_filters, length):
     :returns:
     """
 
-    shortcut = conv2d_bn(x=input_layer, filters=n_filters, num_row=1, num_col=1, activation=None)
-
+    x = conv2d_bn(x=input_layer, filters=n_filters, num_row=1, num_col=1, activation=None)
     out = conv2d_bn(x=input_layer, filters=n_filters, num_row=3, num_col=3, activation='relu')
 
-    out = add([shortcut, out])
-    out = Activation('relu')(out)
+    out = add([x, out])
     out = BatchNormalization(axis=3)(out)
+    out = Activation('relu')(out)
 
     for i in range(length - 1):
-        shortcut = out
-        shortcut = conv2d_bn(x=shortcut, filters=n_filters, num_row=1, num_col=1, activation=None)
+        x = conv2d_bn(x=out, filters=n_filters, num_row=1, num_col=1, activation=None)
         out = conv2d_bn(out, filters=n_filters, num_row=3, num_col=3, activation='relu')
 
-        out = add([shortcut, out])
-        out = Activation('relu')(out)
+        out = add([x, out])
         out = BatchNormalization(axis=3)(out)
+        out = Activation('relu')(out)
 
     return out
 
 
 class UnetDC:
-    def __init__(self, img_height, img_width, img_channels, n_filters=32):
+    def __init__(self, img_height, img_width, img_channels, n_filters=16):
         """
         Dual Channel efficient unet.
 
@@ -142,23 +118,22 @@ class UnetDC:
         dc_block_4 = residual_path(input_layer=dc_block_4, n_filters=n_filters * 8, length=1)
 
         dc_block_5 = dual_channel_block(input_layer=pool4, n_filters=n_filters * 16)
-
         up6 = concatenate([Conv2DTranspose(filters=n_filters * 8, kernel_size=(2, 2), strides=(2, 2), padding='same')
                            (dc_block_5), dc_block_4], axis=3)
-        dc_block_6 = dual_channel_block(input_layer=up6, n_filters=n_filters * 8)
 
+        dc_block_6 = dual_channel_block(input_layer=up6, n_filters=n_filters * 8)
         up7 = concatenate([Conv2DTranspose(filters=n_filters * 4, kernel_size=(2, 2), strides=(2, 2), padding='same')
                            (dc_block_6), dc_block_3], axis=3)
-        dc_block_7 = dual_channel_block(input_layer=up7, n_filters=n_filters * 4)
 
+        dc_block_7 = dual_channel_block(input_layer=up7, n_filters=n_filters * 4)
         up8 = concatenate([Conv2DTranspose(filters=n_filters * 2, kernel_size=(2, 2), strides=(2, 2), padding='same')
                            (dc_block_7), dc_block_2], axis=3)
-        dc_block_8 = dual_channel_block(input_layer=up8, n_filters=n_filters * 2)
 
+        dc_block_8 = dual_channel_block(input_layer=up8, n_filters=n_filters * 2)
         up9 = concatenate([Conv2DTranspose(filters=n_filters, kernel_size=(2, 2), strides=(2, 2), padding='same')
                            (dc_block_8), dc_block_1], axis=3)
-        dc_block_9 = dual_channel_block(input_layer=up9, n_filters=n_filters)
 
+        dc_block_9 = dual_channel_block(input_layer=up9, n_filters=n_filters)
         output_ = conv2d_bn(x=dc_block_9, filters=1, num_row=1, num_col=1, activation='sigmoid')
 
         self.model = Model(inputs=[input_], outputs=[output_])
