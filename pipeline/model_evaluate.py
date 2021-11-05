@@ -84,6 +84,8 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
+    best_model.compile(loss=jaccard_distance_loss, optimizer="Adam", metrics=[iou, dice])
+
     evaluate_model(model=best_model,
                    dataset=segmentation_dataset,
                    data_size=test_size,

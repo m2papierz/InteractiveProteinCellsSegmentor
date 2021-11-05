@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import IPython.display as display
 
 
 def display_sample_images(images_list: list) -> None:
@@ -12,7 +11,7 @@ def display_sample_images(images_list: list) -> None:
     :return: None
     """
     plt.figure(figsize=(18, 18))
-    title = ['Input image', 'Scribble', 'True mask', 'Prediction mask']
+    title = ['Input image', 'True mask', 'Prediction mask']
 
     for i in range(len(images_list)):
         plt.subplot(1, len(images_list), i + 1)
@@ -41,22 +40,4 @@ def show_predictions(model: tf.keras.Model, sample_images: tuple) -> None:
     """
     for image, mask in sample_images:
         pred_mask = model.predict(image)
-        display_sample_images([image[0][:, :, :3], image[0][:, :, 3], mask[0], pred_mask[0]])
-
-
-class DisplayCallback(tf.keras.callbacks.Callback):
-    """
-    Callbacks displaying sample images and predictions for them each 5th epoch.
-    """
-
-    def __init__(self, sample_images, displaying_freq=5, enable_displaying=False):
-        super().__init__()
-        self.sample_images = sample_images
-        self.displaying_freq = displaying_freq
-        self.enable_displaying = enable_displaying
-
-    def on_epoch_end(self, epoch, logs=None):
-        display.clear_output(wait=True)
-        if self.enable_displaying:
-            if ((epoch + 1) % self.displaying_freq) == 0:
-                show_predictions(self.model, self.sample_images)
+        display_sample_images([image[0][:, :, :3], mask[0], pred_mask[0]])

@@ -1,19 +1,22 @@
 # Paths to data
-DATA_PATH_TRAIN: "D:/DataScience/THESIS/data/segmentation_data/train_valid/"
-DATA_PATH_EVAL: "D:/DataScience/THESIS/data/segmentation_data/test/"
+DATA_PATH_TRAIN: "D:/Uczelnia/Thesis/segmentation_data/datasets/train_valid/"
+DATA_PATH_EVAL: "D:/Uczelnia/Thesis/segmentation_data/datasets/test/"
+ANNOTATIONS_XML_PATH: "D:/Uczelnia/Thesis/segmentation_data/annotations.xml"
+POS_CLICK_MAPS_PATH: "D:/Uczelnia/Thesis/segmentation_data/positive_click_maps/"
+NEG_CLICK_MAPS_PATH: "D:/Uczelnia/Thesis/segmentation_data/negative_click_maps/"
 
 # Paths to models
-MODELS_PATH: "D:/DataScience/THESIS/models/"
+MODELS_PATH: "D:/Uczelnia/Thesis/models/"
 UNET_MODEL_PATH: "unet.hdf5"
 UNETPP_MODEL_PATH: "unet_pp.hdf5"
 UNET_DC_MODEL_PATH: "unet_dc.hdf5"
 UNET_DPN_MODEL_PATH: "unet_dpn.hdf5"
-TENSORBOARD_LOGS_PATH: "D:\\DataScience\\THESIS\\models\\logs\\"
+TENSORBOARD_LOGS_PATH: "D:\\Uczelnia\\Thesis\\logs\\"
 
 # Train parameters
 BATCH_SIZE: 1
-EPOCHS: 250
-EARLY_STOP_PATIENCE: 30
+EPOCHS: 150
+EARLY_STOP_PATIENCE: 15
 TRAIN_RATIO: 0.90
 VAL_RATIO: 0.1
 BUFFER_SIZE: 256

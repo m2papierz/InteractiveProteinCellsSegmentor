@@ -2,7 +2,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from datetime import datetime
-from utils.callback import DisplayCallback
 from utils.loss_and_metrics import iou, dice, jaccard_distance_loss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 from utils.image_processing import parse_image
@@ -69,18 +68,16 @@ def build_model(model_arch: str, img_height: int, img_width: int, img_channels: 
     return model
 
 
-def make_callbacks(sample_images: list, early_stop_patience: int, save_model_path: str):
+def make_callbacks(early_stop_patience: int, save_model_path: str):
     """
     Make list of callbacks used during training.
 
-    :param sample_images: sample images used for DisplayCallback
     :param early_stop_patience: number of epochs with no improvement after which training will be stopped
     :param save_model_path: path for saving the best model from ModelCheckpoint callback
     :return: List of callbacks.
     """
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
     callbacks = [
-        DisplayCallback(sample_images, displaying_freq=10, enable_displaying=False),
         EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
         ModelCheckpoint(filepath=save_model_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
@@ -164,12 +161,15 @@ if __name__ == '__main__':
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
     samples = segmentation_dataset['train'].take(1)
 
-    callbacks_list = make_callbacks(sample_images=samples,
-                                    early_stop_patience=EARLY_STOP_PATIENCE,
-                                    save_model_path=model_path)
+    callbacks_list = make_callbacks(early_stop_patience=EARLY_STOP_PATIENCE, save_model_path=model_path)
 
-    unet = build_model(model_arch=model_name, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT,
-                       img_channels=INPUT_CHANNELS, loss=LOSS,  optimizer=OPTIMIZER, metrics=METRICS)
+    unet = build_model(model_arch=model_name,
+                       img_width=IMAGE_WIDTH,
+                       img_height=IMAGE_HEIGHT,
+                       img_channels=INPUT_CHANNELS,
+                       loss=LOSS,
+                       optimizer=OPTIMIZER,
+                       metrics=METRICS)
 
     with tf.device("device:GPU:0"):
         history = unet.train(dataset=segmentation_dataset,
