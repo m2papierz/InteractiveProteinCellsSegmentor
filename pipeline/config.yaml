@@ -1,19 +1,23 @@
 # Paths to data
-DATA_PATH_TRAIN: "D:/DataScience/THESIS/data/segmentation_data/train_valid/"
-DATA_PATH_EVAL: "D:/DataScience/THESIS/data/segmentation_data/test/"
+PROJECT_PATH: "D:/Uczelnia/Thesis/"
+DATA_PATH_TRAIN: "segmentation_data/datasets/train_valid/"
+DATA_PATH_TEST: "segmentation_data/datasets/test/"
+ANNOTATIONS_XML_TRAIN_PATH: "segmentation_data/train_annotations.xml"
+ANNOTATIONS_XML_TEST_PATH: "segmentation_data/test_annotations.xml"
+POS_CLICK_MAPS_PATH: "pos_click/"
+NEG_CLICK_MAPS_PATH: "neg_click/"
 
 # Paths to models
-MODELS_PATH: "D:/DataScience/THESIS/models/"
+MODELS_PATH: "models/"
 UNET_MODEL_PATH: "unet.hdf5"
-UNETPP_MODEL_PATH: "unet_pp.hdf5"
 UNET_DC_MODEL_PATH: "unet_dc.hdf5"
 UNET_DPN_MODEL_PATH: "unet_dpn.hdf5"
-TENSORBOARD_LOGS_PATH: "D:\\DataScience\\THESIS\\models\\logs\\"
+TENSORBOARD_LOGS_PATH: "D:\\Uczelnia\\Thesis\\logs\\"
 
 # Train parameters
 BATCH_SIZE: 1
-EPOCHS: 250
-EARLY_STOP_PATIENCE: 30
+EPOCHS: 175
+EARLY_STOP_PATIENCE: 15
 TRAIN_RATIO: 0.90
 VAL_RATIO: 0.1
 BUFFER_SIZE: 256
@@ -25,9 +29,8 @@ IMAGE_WIDTH: 512
 INPUT_CHANNELS: 5
 
 # Model parameters
-MODELS: ["UNET_SHALLOW", "UNET_PP", "UNET_DC", "UNET_DPN"]
-UNET_SHALLOW: False
-UNET_PP: False
+MODELS: ["UNET_SHALLOW", "UNET_DC", "UNET_DPN"]
+UNET_SHALLOW: True
 UNET_DC: False
-UNET_DPN: True
+UNET_DPN: False
 OPTIMIZER: "Adam"

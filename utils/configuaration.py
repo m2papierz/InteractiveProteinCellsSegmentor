@@ -20,13 +20,13 @@ def read_yaml_file(yaml_file_path: str):
 def config_data_pipeline_performance(dataset: tf.data.Dataset, training: bool, buffer_size: int, batch_size: int,
                                      seed: int, autotune: int) -> tf.data.Dataset:
     """
-    Configure the utils pipeline for its performance enhancement.
+    Configures the dataset preparation pipeline for its performance enhancement.
 
     :param dataset: dataset to be configured
     :param training: a boolean which if true indicates that the dataset set is the training one
     :param buffer_size: size of the buffer
     :param batch_size: size of the batch
-    :param seed: random seed for creation of the distribution
+    :param seed: random seed
     :param autotune: maximum number of elements that will be used when prefetching
     :return: Configured dataset
     """

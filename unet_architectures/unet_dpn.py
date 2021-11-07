@@ -48,6 +48,14 @@ def con2d_down_block(input_tensor, n_filters, kernel):
 
 class UnetDPN:
     def __init__(self, img_height, img_width, img_channels, n_filters=16):
+        """
+        Dual Path Unet.
+
+        :param img_height: height of the input image tensor
+        :param img_width: width of the input image tensor
+        :param img_channels: number of channels of the input image tensor=
+        :param n_filters: base number of filters in the convolutional layers
+        """
 
         input_ = Input((img_height, img_width, img_channels))
 
