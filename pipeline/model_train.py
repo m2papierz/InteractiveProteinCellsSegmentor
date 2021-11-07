@@ -2,25 +2,25 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from datetime import datetime
-from utils.loss_and_metrics import iou, dice, jaccard_distance_loss
+from utils.loss_and_metrics import iou, dice, JaccardLoss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
-from utils.image_processing import parse_image
+from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-from unet_architectures import unet_shallow, unet_pp, unet_dc, unet_dpn
+from unet_architectures import unet_shallow, unet_dc, unet_dpn
 
 
 def create_dataset(data_path: str) -> tuple:
     """
-    Creates dataset for image segmentation.
+    Creates train and validation datasets.
 
-    :param data_path: path to utils dictionary
-    :return: Tuple with dataset, train dataset size and validation dataset size
+    :param data_path: path to the data
+    :return: tuple with dataset, train dataset size and validation dataset size
     """
 
     full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
-    full_dataset = full_dataset.map(parse_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    full_dataset = full_dataset.map(parse_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     dataset_size = tf.data.experimental.cardinality(full_dataset).numpy()
     train_dataset_size = int(TRAIN_RATIO * dataset_size)
@@ -38,28 +38,26 @@ def create_dataset(data_path: str) -> tuple:
     return dataset, train_dataset_size, val_dataset_size
 
 
-def build_model(model_arch: str, img_height: int, img_width: int, img_channels: int, loss: tf.keras.losses.Loss,
+def build_model(model_arch: str, img_height: int, img_width: int, in_channels: int, loss: tf.keras.losses.Loss,
                 optimizer: tf.keras.optimizers.Optimizer, metrics: list):
     """
-    Build and compile model.
+    Builds and compiles model.
 
     :param model_arch: name of the u-net model to be used
     :param img_height: height of the image
     :param img_width: width of the image
-    :param img_channels: number of image channels
+    :param in_channels: number of input channels
     :param loss: loss function
     :param optimizer: optimizer
     :param metrics: metrics for training
     :return: Build and compiled model.
     """
     if model_arch == "UNET_SHALLOW":
-        model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=img_channels)
-    elif model_arch == "UNET_PP":
-        model = unet_pp.UnetPP(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     elif model_arch == "UNET_DC":
-        model = unet_dc.UnetDC(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = unet_dc.UnetDC(img_height=img_height, img_width=img_width, img_channels=in_channels)
     elif model_arch == "UNET_DPN":
-        model = unet_dpn.UnetDPN(img_height=img_height, img_width=img_width, img_channels=img_channels)
+        model = unet_dpn.UnetDPN(img_height=img_height, img_width=img_width, img_channels=in_channels)
     else:
         raise NotImplementedError()
 
@@ -68,13 +66,13 @@ def build_model(model_arch: str, img_height: int, img_width: int, img_channels: 
     return model
 
 
-def make_callbacks(early_stop_patience: int, save_model_path: str):
+def make_callbacks(early_stop_patience: int, save_model_path: str) -> list:
     """
-    Make list of callbacks used during training.
+    Makes list of callbacks for model training.
 
     :param early_stop_patience: number of epochs with no improvement after which training will be stopped
     :param save_model_path: path for saving the best model from ModelCheckpoint callback
-    :return: List of callbacks.
+    :return: list of callbacks
     """
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
     callbacks = [
@@ -87,9 +85,9 @@ def make_callbacks(early_stop_patience: int, save_model_path: str):
 
 def plot_history(model_history: tf.keras.callbacks.History) -> None:
     """
+    Plots training history.
 
-    :param model_history: dictionary caring history records of model training
-    :return: None
+    :param model_history: dictionary caring history records of the model training
     """
     loss = model_history.history['loss']
     val_loss = model_history.history['val_loss']
@@ -109,10 +107,10 @@ if __name__ == '__main__':
     config = read_yaml_file("./config.yaml")
 
     # Paths
-    DATA_PATH = config["DATA_PATH_TRAIN"]
-    MODELS_PATH = config["MODELS_PATH"]
+    PROJECT_PATH = config["PROJECT_PATH"]
+    DATA_PATH_TRAIN = PROJECT_PATH + config["DATA_PATH_TRAIN"]
+    MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
-    UNETPP_MODEL_PATH = config["UNETPP_MODEL_PATH"]
     UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
     UNET_DPN_MODEL_PATH = config["UNET_DPN_MODEL_PATH"]
     TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
@@ -135,7 +133,6 @@ if __name__ == '__main__':
     # Model parameters
     MODELS = config["MODELS"]
     UNET_SHALLOW = config["UNET_SHALLOW"]
-    UNET_PP = config["UNET_PP"]
     UNET_DC = config["UNET_DC"]
     UNET_DPN = config["UNET_DPN"]
     OPTIMIZER = config["OPTIMIZER"]
@@ -144,21 +141,16 @@ if __name__ == '__main__':
     if UNET_SHALLOW:
         model_path = MODELS_PATH + UNET_MODEL_PATH
         model_name = MODELS[0]
-    elif UNET_PP:
-        model_path = MODELS_PATH + UNETPP_MODEL_PATH
-        model_name = MODELS[1]
     elif UNET_DC:
         model_path = MODELS_PATH + UNET_DC_MODEL_PATH
-        model_name = MODELS[2]
+        model_name = MODELS[1]
     elif UNET_DPN:
         model_path = MODELS_PATH + UNET_DPN_MODEL_PATH
-        model_name = MODELS[3]
+        model_name = MODELS[2]
     else:
         raise NotImplementedError()
 
-    LOSS = jaccard_distance_loss
-
-    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH)
+    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH_TRAIN)
     samples = segmentation_dataset['train'].take(1)
 
     callbacks_list = make_callbacks(early_stop_patience=EARLY_STOP_PATIENCE, save_model_path=model_path)
@@ -166,8 +158,8 @@ if __name__ == '__main__':
     unet = build_model(model_arch=model_name,
                        img_width=IMAGE_WIDTH,
                        img_height=IMAGE_HEIGHT,
-                       img_channels=INPUT_CHANNELS,
-                       loss=LOSS,
+                       in_channels=INPUT_CHANNELS,
+                       loss=JaccardLoss(),
                        optimizer=OPTIMIZER,
                        metrics=METRICS)
 

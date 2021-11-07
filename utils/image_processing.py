@@ -5,7 +5,7 @@ import tensorflow as tf
 @tf.function
 def augment_images(data: dict) -> tuple:
     """
-    Resize and randomly augment utils.
+    Resizes and randomly augments input image.
 
     :param data: dict containing an image and its mask
     :return: Processed imaged and its mask.
@@ -28,12 +28,12 @@ def augment_images(data: dict) -> tuple:
     return input_image, input_mask
 
 
-def parse_image(image_path: str) -> tuple:
+def parse_images(image_path: str) -> tuple:
     """
-    Load an image and its mask.
+    Loads and processes input images.
 
     :param image_path: path to the image
-    :return: Dictionary mapping an image and its mask.
+    :return: tuple with an input and mask
     """
     image = tf.io.read_file(image_path)
     image = tf.image.decode_png(image, channels=3)
