@@ -8,7 +8,7 @@ from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-from unet_architectures import unet_shallow, unet_dc, unet_dpn
+from unet_architectures import unet_shallow, unet_dc, unet_dp
 
 
 def create_dataset(data_path: str) -> tuple:
@@ -56,12 +56,13 @@ def build_model(model_arch: str, img_height: int, img_width: int, in_channels: i
         model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     elif model_arch == "UNET_DC":
         model = unet_dc.UnetDC(img_height=img_height, img_width=img_width, img_channels=in_channels)
-    elif model_arch == "UNET_DPN":
-        model = unet_dpn.UnetDPN(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    elif model_arch == "UNET_DP":
+        model = unet_dp.UnetDP(img_height=img_height, img_width=img_width, img_channels=in_channels)
     else:
         raise NotImplementedError()
 
     model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
+    model.model.summary()
 
     return model
 
@@ -112,7 +113,7 @@ if __name__ == '__main__':
     MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
     UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
-    UNET_DPN_MODEL_PATH = config["UNET_DPN_MODEL_PATH"]
+    UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
     TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
 
     # Train parameters
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     MODELS = config["MODELS"]
     UNET_SHALLOW = config["UNET_SHALLOW"]
     UNET_DC = config["UNET_DC"]
-    UNET_DPN = config["UNET_DPN"]
+    UNET_DP = config["UNET_DP"]
     OPTIMIZER = config["OPTIMIZER"]
     METRICS = [iou, dice]
 
@@ -144,8 +145,8 @@ if __name__ == '__main__':
     elif UNET_DC:
         model_path = MODELS_PATH + UNET_DC_MODEL_PATH
         model_name = MODELS[1]
-    elif UNET_DPN:
-        model_path = MODELS_PATH + UNET_DPN_MODEL_PATH
+    elif UNET_DP:
+        model_path = MODELS_PATH + UNET_DP_MODEL_PATH
         model_name = MODELS[2]
     else:
         raise NotImplementedError()

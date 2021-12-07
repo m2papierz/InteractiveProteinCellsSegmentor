@@ -11,16 +11,16 @@ NEG_CLICK_MAPS_PATH: "neg_click/"
 MODELS_PATH: "models/"
 UNET_MODEL_PATH: "unet.hdf5"
 UNET_DC_MODEL_PATH: "unet_dc.hdf5"
-UNET_DPN_MODEL_PATH: "unet_dpn.hdf5"
+UNET_DP_MODEL_PATH: "unet_dp.hdf5"
 TENSORBOARD_LOGS_PATH: "D:\\Uczelnia\\Thesis\\logs\\"
 
 # Train parameters
-BATCH_SIZE: 1
+BATCH_SIZE: 2
 EPOCHS: 175
 EARLY_STOP_PATIENCE: 15
 TRAIN_RATIO: 0.90
 VAL_RATIO: 0.1
-BUFFER_SIZE: 256
+BUFFER_SIZE: 128
 SEED: 42
 
 # Input parameters
@@ -29,8 +29,8 @@ IMAGE_WIDTH: 512
 INPUT_CHANNELS: 5
 
 # Model parameters
-MODELS: ["UNET_SHALLOW", "UNET_DC", "UNET_DPN"]
-UNET_SHALLOW: True
+MODELS: ["UNET_SHALLOW", "UNET_DC", "UNET_DP"]
+UNET_SHALLOW: False
 UNET_DC: False
-UNET_DPN: False
+UNET_DP: True
 OPTIMIZER: "Adam"

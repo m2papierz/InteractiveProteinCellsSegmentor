@@ -49,17 +49,20 @@ def show_predictions(model: tf.keras.Model, images: tuple) -> None:
     :param model: model for predictions
     :param images: images for predictions
     """
-    titles = ['Input image', 'True mask', 'Prediction mask']
+    titles = ['Input image', 'Pos', 'Neg', 'True mask', 'Prediction mask']
 
     for image, mask in images:
         pred_mask = model.predict(image)
-        images_list = [image[0][:, :, :3], mask[0], pred_mask[0]]
+        images_list = [image[0][:, :, :3], image[0][:, :, 3], image[0][:, :, 4], mask[0], pred_mask[0]]
 
         plt.figure(figsize=(12, 12))
         for i in range(len(images_list)):
             plt.subplot(1, len(images_list), i + 1)
             plt.title(titles[i])
-            plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
+            if i == 1 or i == 2:
+                plt.imshow(images_list[i])
+            else:
+                plt.imshow(tf.keras.preprocessing.image.array_to_img(images_list[i]))
             plt.axis('off')
         plt.show()
 
@@ -72,7 +75,7 @@ if __name__ == '__main__':
     MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
     UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
-    UNET_DPN_MODEL_PATH = config["UNET_DPN_MODEL_PATH"]
+    UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
 
     BATCH_SIZE = config["BATCH_SIZE"]
     BUFFER_SIZE = config["BUFFER_SIZE"]
@@ -81,7 +84,7 @@ if __name__ == '__main__':
 
     SHALLOW_UNET = config["UNET_SHALLOW"]
     UNET_DC = config["UNET_DC"]
-    UNET_DPN = config["UNET_DPN"]
+    UNET_DP = config["UNET_DP"]
 
     segmentation_dataset, test_size = create_test_dataset(DATA_PATH_TEST)
     test_images = segmentation_dataset['test'].take(test_size)
@@ -95,8 +98,8 @@ if __name__ == '__main__':
     elif UNET_DC:
         model_path = MODELS_PATH + UNET_DC_MODEL_PATH
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    elif UNET_DPN:
-        model_path = MODELS_PATH + UNET_DPN_MODEL_PATH
+    elif UNET_DP:
+        model_path = MODELS_PATH + UNET_DP_MODEL_PATH
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     else:
         raise NotImplementedError()

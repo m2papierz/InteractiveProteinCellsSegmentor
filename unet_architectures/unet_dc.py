@@ -72,7 +72,7 @@ def residual_path(input_layer, n_filters, length):
     :returns:
     """
 
-    x = conv2d_bn(x=input_layer, filters=n_filters, num_row=1, num_col=1, activation=None)
+    x = conv2d_bn(x=input_layer, filters=n_filters, num_row=1, num_col=1)
     out = conv2d_bn(x=input_layer, filters=n_filters, num_row=3, num_col=3, activation='relu')
 
     out = add([x, out])
@@ -80,7 +80,7 @@ def residual_path(input_layer, n_filters, length):
     out = Activation('relu')(out)
 
     for i in range(length - 1):
-        x = conv2d_bn(x=out, filters=n_filters, num_row=1, num_col=1, activation=None)
+        x = conv2d_bn(x=out, filters=n_filters, num_row=1, num_col=1)
         out = conv2d_bn(out, filters=n_filters, num_row=3, num_col=3, activation='relu')
 
         out = add([x, out])
