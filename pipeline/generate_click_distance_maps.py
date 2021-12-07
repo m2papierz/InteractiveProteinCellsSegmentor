@@ -116,8 +116,8 @@ def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_sa
             if "neg_click" in label:
                 neg_coordinates.append(coordinates)
 
-        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates, scale=2.0)
-        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates, scale=3.5)
+        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates, scale=POS_CLICK_MAP_SCALE)
+        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates, scale=NEG_CLICK_MAP_SCALE)
 
         plt.imsave(pos_save + filename, pos_map)
         plt.imsave(neg_save + filename, neg_map)
@@ -139,6 +139,8 @@ if __name__ == '__main__':
 
     IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
     IMAGE_WIDTH = config["IMAGE_WIDTH"]
+    POS_CLICK_MAP_SCALE = config["POS_CLICK_MAP_SCALE"]
+    NEG_CLICK_MAP_SCALE = config["NEG_CLICK_MAP_SCALE"]
 
     with open(ANNOTATIONS_XML_TRAIN_PATH, 'r') as f:
         train_data = f.read()
