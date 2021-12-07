@@ -116,8 +116,8 @@ def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_sa
             if "neg_click" in label:
                 neg_coordinates.append(coordinates)
 
-        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates, scale=1.5)
-        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates, scale=3.0)
+        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates, scale=2.0)
+        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates, scale=3.5)
 
         plt.imsave(pos_save + filename, pos_map)
         plt.imsave(neg_save + filename, neg_map)
@@ -126,16 +126,16 @@ def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_sa
 if __name__ == '__main__':
     config = read_yaml_file("./config.yaml")
 
-    DATA_PATH = config["DATA_PATH"]
+    PROJECT_PATH = config["PROJECT_PATH"]
     DATA_PATH_TRAIN = config["DATA_PATH_TRAIN"]
     DATA_PATH_TEST = config["DATA_PATH_TEST"]
 
-    ANNOTATIONS_XML_TRAIN_PATH = DATA_PATH + config["ANNOTATIONS_XML_TRAIN_PATH"]
-    ANNOTATIONS_XML_TEST_PATH = DATA_PATH + config["ANNOTATIONS_XML_TEST_PATH"]
-    POS_CLICK_MAPS_TRAIN_PATH = DATA_PATH + DATA_PATH_TRAIN + config["POS_CLICK_MAPS_PATH"]
-    NEG_CLICK_MAPS_TRAIN_PATH = DATA_PATH + DATA_PATH_TRAIN + config["NEG_CLICK_MAPS_PATH"]
-    POS_CLICK_MAPS_TEST_PATH = DATA_PATH + DATA_PATH_TEST + config["POS_CLICK_MAPS_PATH"]
-    NEG_CLICK_MAPS_TEST_PATH = DATA_PATH + DATA_PATH_TEST + config["NEG_CLICK_MAPS_PATH"]
+    ANNOTATIONS_XML_TRAIN_PATH = PROJECT_PATH + config["ANNOTATIONS_XML_TRAIN_PATH"]
+    ANNOTATIONS_XML_TEST_PATH = PROJECT_PATH + config["ANNOTATIONS_XML_TEST_PATH"]
+    POS_CLICK_MAPS_TRAIN_PATH = PROJECT_PATH + DATA_PATH_TRAIN + config["POS_CLICK_MAPS_PATH"]
+    NEG_CLICK_MAPS_TRAIN_PATH = PROJECT_PATH + DATA_PATH_TRAIN + config["NEG_CLICK_MAPS_PATH"]
+    POS_CLICK_MAPS_TEST_PATH = PROJECT_PATH + DATA_PATH_TEST + config["POS_CLICK_MAPS_PATH"]
+    NEG_CLICK_MAPS_TEST_PATH = PROJECT_PATH + DATA_PATH_TEST + config["NEG_CLICK_MAPS_PATH"]
 
     IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
     IMAGE_WIDTH = config["IMAGE_WIDTH"]

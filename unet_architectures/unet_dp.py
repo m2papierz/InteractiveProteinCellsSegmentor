@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Conv2DTranspose
+from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import concatenate, add
@@ -39,14 +40,25 @@ def con2d_down_block(input_tensor, n_filters, kernel):
     x0 = BatchNormalization()(x0)
     x0 = Activation('relu')(x0)
 
-    x = add([x1, x0])
+    x = add([x0, x1])
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     return x
 
 
-class UnetDPN:
+def con2d_up_block(input_tensor, n_filters):
+    x0 = Conv2DTranspose(filters=n_filters, kernel_size=(3, 3), strides=(2, 2), kernel_initializer='he_normal',
+                         padding='same')(input_tensor)
+    x1 = UpSampling2D()(input_tensor)
+    x = add([x0, x1])
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    return x
+
+
+class UnetDP:
     def __init__(self, img_height, img_width, img_channels, n_filters=16):
         """
         Dual Path Unet.
@@ -80,45 +92,38 @@ class UnetDPN:
         x11 = conv2d_block(input_tensor=x11, n_filters=2 * n_filters, kernel=(3, 3))
         d11 = con2d_down_block(input_tensor=x11, n_filters=2 * n_filters, kernel=(3, 3))
 
-        u01 = Conv2DTranspose(filters=n_filters * 4, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x30)
+        u01 = con2d_up_block(input_tensor=x30, n_filters=n_filters * 8)
 
         x21 = concatenate([d11, x20, u01])
         x21 = conv2d_block(input_tensor=x21, n_filters=4 * n_filters, kernel=(3, 3))
         d21 = con2d_down_block(input_tensor=x21, n_filters=4 * n_filters, kernel=(3, 3))
 
-        u00 = Conv2DTranspose(filters=n_filters * 8, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(m)
+        u00 = con2d_up_block(input_tensor=m, n_filters=n_filters * 16)
 
         x31 = concatenate([u00, x30, d21])
         x31 = conv2d_block(input_tensor=x31, n_filters=8 * n_filters, kernel=(3, 3))
 
-        u10 = Conv2DTranspose(filters=n_filters * 4, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x31)
+        u10 = con2d_up_block(input_tensor=x31, n_filters=n_filters * 8)
 
         x22 = concatenate([u10, x21, x20])
         x22 = conv2d_block(input_tensor=x22, n_filters=4 * n_filters, kernel=(3, 3))
 
-        u11 = Conv2DTranspose(filters=n_filters * 2, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x21)
+        u11 = con2d_up_block(input_tensor=x21, n_filters=n_filters * 4)
 
         x12 = concatenate([u11, x11, x10])
         x12 = conv2d_block(input_tensor=x12, n_filters=2 * n_filters, kernel=(3, 3))
 
-        u20 = Conv2DTranspose(filters=n_filters * 2, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x22)
+        u20 = con2d_up_block(input_tensor=x22, n_filters=n_filters * 4)
 
         x13 = concatenate([u20, x12, x11, x10])
         x13 = conv2d_block(input_tensor=x13, n_filters=2 * n_filters, kernel=(3, 3))
 
-        u21 = Conv2DTranspose(filters=n_filters * 1, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x12)
+        u21 = con2d_up_block(input_tensor=x12, n_filters=n_filters * 2)
 
         x02 = concatenate([u21, x01, x00])
         x02 = conv2d_block(input_tensor=x02, n_filters=1 * n_filters, kernel=(3, 3))
 
-        u30 = Conv2DTranspose(filters=n_filters * 1, kernel_size=(3, 3), strides=(2, 2), padding='same',
-                              kernel_initializer="he_normal")(x13)
+        u30 = con2d_up_block(input_tensor=x13, n_filters=n_filters * 2)
 
         x03 = concatenate([u30, x02, x01, x00])
         x03 = conv2d_block(input_tensor=x03, n_filters=1 * n_filters, kernel=(3, 3))
