@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
+from PIL import Image
 
 from tqdm import tqdm
 from bs4 import BeautifulSoup
@@ -22,13 +22,14 @@ def euclidean_distance(p1: tuple, p2: tuple, scale=1.0) -> float:
     return np.sqrt(distance) * scale
 
 
-def create_gaussian_distance_map(shape: tuple, points: list, scale=1.0, omega=255.0) -> np.array:
+def create_gaussian_distance_map(shape: tuple, points: list, scale=1.0, image=False, omega=255.0) -> np.array:
     """
     Creates gaussian distance map for given points.
 
     :param shape: shape of the output map
     :param points: list of points coordinates
     :param scale: scale factor
+    :param image: flag indicating if created map will be save as image
     :param omega: max map value
     :return: gaussian map array
     """
@@ -60,7 +61,10 @@ def create_gaussian_distance_map(shape: tuple, points: list, scale=1.0, omega=25
 
         for x in range(x_min, x_max):
             for y in range(y_min, y_max):
-                dm[x, y] = min(dm[x, y], euclidean_distance((x, y), (p[0], p[1]), scale))
+                if image:
+                    dm[x, y] = min(dm[x, y], euclidean_distance((x, y), (p[0], p[1]), scale))
+                else:
+                    dm[y, x] = min(dm[y, x], euclidean_distance((y, x), (p[1], p[0]), scale))
 
     return np.abs(np.array(dm) - 255.0)
 
@@ -116,11 +120,13 @@ def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_sa
             if "neg_click" in label:
                 neg_coordinates.append(coordinates)
 
-        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates, scale=POS_CLICK_MAP_SCALE)
-        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates, scale=NEG_CLICK_MAP_SCALE)
+        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates,
+                                               image=False, scale=POS_CLICK_MAP_SCALE)
+        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates,
+                                               image=False, scale=NEG_CLICK_MAP_SCALE)
 
-        plt.imsave(pos_save + filename, pos_map)
-        plt.imsave(neg_save + filename, neg_map)
+        Image.fromarray(pos_map.astype(np.uint8)).save(pos_save + filename, "PNG")
+        Image.fromarray(neg_map.astype(np.uint8)).save(neg_save + filename, "PNG")
 
 
 if __name__ == '__main__':
