@@ -6,6 +6,7 @@ ANNOTATIONS_XML_TRAIN_PATH: "segmentation_data/train_annotations.xml"
 ANNOTATIONS_XML_TEST_PATH: "segmentation_data/test_annotations.xml"
 POS_CLICK_MAPS_PATH: "pos_click/"
 NEG_CLICK_MAPS_PATH: "neg_click/"
+TEST_IMAGE_PATH: "utils/test_image/test_img.png"
 
 # Paths to models
 MODELS_PATH: "models/"
@@ -23,14 +24,25 @@ VAL_RATIO: 0.1
 BUFFER_SIZE: 128
 SEED: 42
 
-# Input parameters
+# Data parameters
 IMAGE_HEIGHT: 512
 IMAGE_WIDTH: 512
+IMAGE_CHANNELS: 3
 INPUT_CHANNELS: 5
+POS_CLICK_MAP_SCALE: 2.0
+NEG_CLICK_MAP_SCALE: 3.5
 
 # Model parameters
 MODELS: ["UNET_SHALLOW", "UNET_DC", "UNET_DP"]
-UNET_SHALLOW: False
+UNET_SHALLOW: True
 UNET_DC: False
-UNET_DP: True
+UNET_DP: False
 OPTIMIZER: "Adam"
+
+# Interactive cell segmentator parameters
+WINDOW_SIZE: 1000
+WINDOW_X: 700
+WINDOW_Y: 200
+IMG_DPI: 300
+
+

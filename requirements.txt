@@ -7,3 +7,6 @@ pyyaml~=6.0
 bs4~=0.0.1
 beautifulsoup4~=4.10.0
 tqdm~=4.62.3
+pyqt5~=5.15.6
+pillow~=8.4.0
+opencv-python~=4.5.4.58
