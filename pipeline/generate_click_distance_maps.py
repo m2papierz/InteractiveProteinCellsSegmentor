@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 from PIL import Image
@@ -69,64 +70,58 @@ def create_gaussian_distance_map(shape: tuple, points: list, scale=1.0, image=Fa
     return np.abs(np.array(dm) - 255.0)
 
 
-def get_annotations_dict(train_data_xml: BeautifulSoup, test_data_xml: BeautifulSoup) -> tuple:
+def get_annotations_dict(data_xml: BeautifulSoup) -> dict:
     """
     Creates dictionaries with points annotations.
 
-    :param train_data_xml: BeautifulSoup instance of xml file with train annotations
-    :param test_data_xml: BeautifulSoup instance of xml file with test annotations
+    :param data_xml: BeautifulSoup instance of xml file with annotations
     :return: tuple of dictionaries with train and test point annotations
     """
-    train_images = train_data_xml.find_all("image")
-    test_images = test_data_xml.find_all("image")
+    images = data_xml.find_all("image")
 
-    ann_dict_train = {}
-    ann_dict_test = {}
+    ann_dict = {}
 
-    for image in train_images:
+    for image in images:
         image_dict = {}
         for i, point in enumerate(image.find_all("points")):
             coordinates = list(map(lambda x: int(float(x)), point["points"].split(",")))[::-1]
             image_dict.update({point["label"] + str(i): coordinates})
-        ann_dict_train.update({image["name"]: image_dict})
+        ann_dict.update({image["name"]: image_dict})
 
-    for image in test_images:
-        image_dict = {}
-        for i, point in enumerate(image.find_all("points")):
-            coordinates = list(map(lambda x: int(float(x)), point["points"].split(",")))[::-1]
-            image_dict.update({point["label"] + str(i): coordinates})
-        ann_dict_test.update({image["name"]: image_dict})
-
-    return ann_dict_train, ann_dict_test
+    return ann_dict
 
 
-def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_save: str, neg_save: str) -> None:
+def create_and_save_distance_maps(xml_files_path: str, pos_save: str, neg_save: str) -> None:
     """
     Creates and saves gaussian distance maps of positive and negative clicks for given annotations.
 
-    :param img_height: height of the input image
-    :param img_width: width of the input image
-    :param ann_dict: dictionary with points annotations
+    :param xml_files_path: dictionary with points annotations
     :param pos_save: path to save positive clicks maps
     :param neg_save: path to save negative clicks maps
     """
-    for filename, points_dict in tqdm(ann_dict.items(), total=len(ann_dict), file=sys.stdout):
-        pos_coordinates = []
-        neg_coordinates = []
+    for i, xml_file in enumerate(os.listdir(xml_files_path)):
+        with open(xml_files_path + xml_file, 'r') as xml:
+            data = xml.read()
+        xml.close()
+        ann_dict = get_annotations_dict(BeautifulSoup(data, "xml"))
 
-        for label, coordinates in points_dict.items():
-            if "pos_click" in label:
-                pos_coordinates.append(coordinates)
-            if "neg_click" in label:
-                neg_coordinates.append(coordinates)
+        for filename, points_dict in tqdm(ann_dict.items(), total=len(ann_dict), file=sys.stdout):
+            pos_coordinates = []
+            neg_coordinates = []
 
-        pos_map = create_gaussian_distance_map((img_height, img_width), pos_coordinates,
-                                               image=False, scale=POS_CLICK_MAP_SCALE)
-        neg_map = create_gaussian_distance_map((img_height, img_width), neg_coordinates,
-                                               image=False, scale=NEG_CLICK_MAP_SCALE)
+            for label, coordinates in points_dict.items():
+                if "pos_click" in label:
+                    pos_coordinates.append(coordinates)
+                if "neg_click" in label:
+                    neg_coordinates.append(coordinates)
 
-        Image.fromarray(pos_map.astype(np.uint8)).save(pos_save + filename, "PNG")
-        Image.fromarray(neg_map.astype(np.uint8)).save(neg_save + filename, "PNG")
+            pos_map = create_gaussian_distance_map((IMAGE_HEIGHT, IMAGE_WIDTH), pos_coordinates,
+                                                   image=False, scale=POS_CLICK_MAP_SCALE)
+            neg_map = create_gaussian_distance_map((IMAGE_HEIGHT, IMAGE_WIDTH), neg_coordinates,
+                                                   image=False, scale=NEG_CLICK_MAP_SCALE)
+
+            Image.fromarray(pos_map.astype(np.uint8)).save(pos_save + filename, "PNG")
+            Image.fromarray(neg_map.astype(np.uint8)).save(neg_save + filename, "PNG")
 
 
 if __name__ == '__main__':
@@ -148,28 +143,12 @@ if __name__ == '__main__':
     POS_CLICK_MAP_SCALE = config["POS_CLICK_MAP_SCALE"]
     NEG_CLICK_MAP_SCALE = config["NEG_CLICK_MAP_SCALE"]
 
-    with open(ANNOTATIONS_XML_TRAIN_PATH, 'r') as f:
-        train_data = f.read()
-    f.close()
-    annotations_data_train = BeautifulSoup(train_data, "xml")
-
-    with open(ANNOTATIONS_XML_TEST_PATH, 'r') as f:
-        test_data = f.read()
-    f.close()
-    annotations_data_test = BeautifulSoup(test_data, "xml")
-
-    annotations_dict_train, annotations_dict_test = get_annotations_dict(train_data_xml=annotations_data_train,
-                                                                         test_data_xml=annotations_data_test)
     print("\n----- GENERATING TRAIN DISTANCE MAPS -----")
-    create_distance_maps(img_height=IMAGE_HEIGHT,
-                         img_width=IMAGE_WIDTH,
-                         ann_dict=annotations_dict_train,
-                         pos_save=POS_CLICK_MAPS_TRAIN_PATH,
-                         neg_save=NEG_CLICK_MAPS_TRAIN_PATH)
+    create_and_save_distance_maps(xml_files_path=ANNOTATIONS_XML_TRAIN_PATH,
+                                  pos_save=POS_CLICK_MAPS_TRAIN_PATH,
+                                  neg_save=NEG_CLICK_MAPS_TRAIN_PATH)
 
     print("\n----- GENERATING TEST DISTANCE MAPS -----")
-    create_distance_maps(img_height=IMAGE_HEIGHT,
-                         img_width=IMAGE_WIDTH,
-                         ann_dict=annotations_dict_test,
-                         pos_save=POS_CLICK_MAPS_TEST_PATH,
-                         neg_save=NEG_CLICK_MAPS_TEST_PATH)
+    create_and_save_distance_maps(xml_files_path=ANNOTATIONS_XML_TEST_PATH,
+                                  pos_save=POS_CLICK_MAPS_TEST_PATH,
+                                  neg_save=NEG_CLICK_MAPS_TEST_PATH)
