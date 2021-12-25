@@ -168,9 +168,6 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         cell_segmentator.neg_clicks = self.neg_clicks
         segmented_cell = cell_segmentator.segment(np.array(self.image))
 
-        self.pos_clicks = []
-        self.neg_clicks = []
-
         self.sc.axes.cla()
         self.sc.axes.imshow(segmented_cell)
         self.sc.fig.canvas.draw_idle()

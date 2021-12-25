@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 from PIL import Image
@@ -69,35 +70,25 @@ def create_gaussian_distance_map(shape: tuple, points: list, scale=1.0, image=Fa
     return np.abs(np.array(dm) - 255.0)
 
 
-def get_annotations_dict(train_data_xml: BeautifulSoup, test_data_xml: BeautifulSoup) -> tuple:
+def get_annotations_dict(data_xml: BeautifulSoup) -> dict:
     """
     Creates dictionaries with points annotations.
 
-    :param train_data_xml: BeautifulSoup instance of xml file with train annotations
-    :param test_data_xml: BeautifulSoup instance of xml file with test annotations
+    :param data_xml: BeautifulSoup instance of xml file with annotations
     :return: tuple of dictionaries with train and test point annotations
     """
-    train_images = train_data_xml.find_all("image")
-    test_images = test_data_xml.find_all("image")
+    images = data_xml.find_all("image")
 
-    ann_dict_train = {}
-    ann_dict_test = {}
+    ann_dict = {}
 
-    for image in train_images:
+    for image in images:
         image_dict = {}
         for i, point in enumerate(image.find_all("points")):
             coordinates = list(map(lambda x: int(float(x)), point["points"].split(",")))[::-1]
             image_dict.update({point["label"] + str(i): coordinates})
-        ann_dict_train.update({image["name"]: image_dict})
+        ann_dict.update({image["name"]: image_dict})
 
-    for image in test_images:
-        image_dict = {}
-        for i, point in enumerate(image.find_all("points")):
-            coordinates = list(map(lambda x: int(float(x)), point["points"].split(",")))[::-1]
-            image_dict.update({point["label"] + str(i): coordinates})
-        ann_dict_test.update({image["name"]: image_dict})
-
-    return ann_dict_train, ann_dict_test
+    return ann_dict
 
 
 def create_distance_maps(img_height: int, img_width: int, ann_dict: dict, pos_save: str, neg_save: str) -> None:
@@ -148,28 +139,36 @@ if __name__ == '__main__':
     POS_CLICK_MAP_SCALE = config["POS_CLICK_MAP_SCALE"]
     NEG_CLICK_MAP_SCALE = config["NEG_CLICK_MAP_SCALE"]
 
-    with open(ANNOTATIONS_XML_TRAIN_PATH, 'r') as f:
-        train_data = f.read()
-    f.close()
-    annotations_data_train = BeautifulSoup(train_data, "xml")
+    ann_data_train = []
+    for filename in os.listdir(ANNOTATIONS_XML_TRAIN_PATH):
+        with open(ANNOTATIONS_XML_TRAIN_PATH + filename, 'r') as f:
+            train_data = f.read()
+        f.close()
+        ann_data_train.append(BeautifulSoup(train_data, "xml"))
 
-    with open(ANNOTATIONS_XML_TEST_PATH, 'r') as f:
-        test_data = f.read()
-    f.close()
-    annotations_data_test = BeautifulSoup(test_data, "xml")
+    ann_data_test = []
+    for filename in os.listdir(ANNOTATIONS_XML_TEST_PATH):
+        with open(ANNOTATIONS_XML_TEST_PATH + filename, 'r') as f:
+            test_data = f.read()
+        f.close()
+        ann_data_test.append(BeautifulSoup(test_data, "xml"))
 
-    annotations_dict_train, annotations_dict_test = get_annotations_dict(train_data_xml=annotations_data_train,
-                                                                         test_data_xml=annotations_data_test)
-    print("\n----- GENERATING TRAIN DISTANCE MAPS -----")
-    create_distance_maps(img_height=IMAGE_HEIGHT,
-                         img_width=IMAGE_WIDTH,
-                         ann_dict=annotations_dict_train,
-                         pos_save=POS_CLICK_MAPS_TRAIN_PATH,
-                         neg_save=NEG_CLICK_MAPS_TRAIN_PATH)
+    for i in range(len(ann_data_train)):
+        annotations_dict_train = get_annotations_dict(data_xml=ann_data_train[i])
 
-    print("\n----- GENERATING TEST DISTANCE MAPS -----")
-    create_distance_maps(img_height=IMAGE_HEIGHT,
-                         img_width=IMAGE_WIDTH,
-                         ann_dict=annotations_dict_test,
-                         pos_save=POS_CLICK_MAPS_TEST_PATH,
-                         neg_save=NEG_CLICK_MAPS_TEST_PATH)
+        print(f"\n----- GENERATING TRAIN DISTANCE MAPS {i} -----")
+        create_distance_maps(img_height=IMAGE_HEIGHT,
+                             img_width=IMAGE_WIDTH,
+                             ann_dict=annotations_dict_train,
+                             pos_save=POS_CLICK_MAPS_TRAIN_PATH,
+                             neg_save=NEG_CLICK_MAPS_TRAIN_PATH)
+
+    for i in range(len(ann_data_test)):
+        annotations_dict_test = get_annotations_dict(data_xml=ann_data_test[i])
+
+        print(f"\n----- GENERATING TEST DISTANCE MAPS {i} -----")
+        create_distance_maps(img_height=IMAGE_HEIGHT,
+                             img_width=IMAGE_WIDTH,
+                             ann_dict=annotations_dict_test,
+                             pos_save=POS_CLICK_MAPS_TEST_PATH,
+                             neg_save=NEG_CLICK_MAPS_TEST_PATH)
