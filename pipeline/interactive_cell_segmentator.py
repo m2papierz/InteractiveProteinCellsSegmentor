@@ -102,7 +102,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.positive_click_btn = QRadioButton("Positive click")
         self.negative_click_btn = QRadioButton("Negative click")
         self.segment_click_btn = QPushButton("Segment cell")
-        self.reset_click_btn = QPushButton("Rest image")
+        self.reset_click_btn = QPushButton("Reset image")
 
         self.__setup_scene()
 
