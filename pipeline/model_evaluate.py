@@ -74,7 +74,6 @@ if __name__ == '__main__':
     DATA_PATH_TEST = PROJECT_PATH + config["DATA_PATH_TEST"]
     MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
     UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
-    UNET_DC_MODEL_PATH = config["UNET_DC_MODEL_PATH"]
     UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
 
     BATCH_SIZE = config["BATCH_SIZE"]
@@ -83,7 +82,6 @@ if __name__ == '__main__':
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
     SHALLOW_UNET = config["UNET_SHALLOW"]
-    UNET_DC = config["UNET_DC"]
     UNET_DP = config["UNET_DP"]
 
     segmentation_dataset, test_size = create_test_dataset(DATA_PATH_TEST)
@@ -94,9 +92,6 @@ if __name__ == '__main__':
 
     if SHALLOW_UNET:
         model_path = MODELS_PATH + UNET_MODEL_PATH
-        best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    elif UNET_DC:
-        model_path = MODELS_PATH + UNET_DC_MODEL_PATH
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     elif UNET_DP:
         model_path = MODELS_PATH + UNET_DP_MODEL_PATH

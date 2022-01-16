@@ -44,7 +44,7 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int, kernel_size: int, regu
 
 class Unet:
     """
-    Standard U-net architecture.
+    Standard U-net architecture proposed in: https://arxiv.org/abs/1505.04597
 
     :param img_height: height of the input image tensor
     :param img_width: width of the input image tensor

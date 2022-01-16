@@ -1,4 +1,3 @@
-import sys
 import matplotlib
 import numpy as np
 import tensorflow as tf
@@ -10,7 +9,6 @@ from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-from utils.configuaration import read_yaml_file
 from pipeline.generate_click_distance_maps import create_gaussian_distance_map
 from utils.loss_and_metrics import JaccardLoss, iou, dice
 
@@ -18,32 +16,38 @@ matplotlib.use('Qt5Agg')
 cgitb.enable(format='text')
 
 
-def load_image(path):
+def load_image(path, img_channels):
+    """
+    Loads image which will be used for segmentation.
+
+    :param path: path to the image
+    :param img_channels: number of channels of the loaded image
+    :return: loaded image
+    """
     image = tf.io.read_file(path)
-    image = tf.image.decode_png(image, channels=IMAGE_CHANNELS)
+    image = tf.image.decode_png(image, channels=img_channels)
     image = tf.image.convert_image_dtype(image, dtype=tf.float32)
     return image
 
 
-def generate_click_maps(pos_clicks, neg_clicks, pos_click_map_scale, neg_click_map_scale):
-    pos_map = create_gaussian_distance_map(shape=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                           points=pos_clicks,
-                                           scale=pos_click_map_scale)
+def cancat_input_tensors(image, pos_map, neg_map, img_height, img_width):
+    """
+    Converts and concatenates image with clicks maps for an input of the segmentation model.
 
-    neg_map = create_gaussian_distance_map(shape=(IMAGE_HEIGHT, IMAGE_WIDTH),
-                                           points=neg_clicks,
-                                           scale=neg_click_map_scale)
-    return pos_map, neg_map
-
-
-def cancat_input_tensors(image, pos_map, neg_map):
+    :param image: input image
+    :param pos_map: input positive clicks map
+    :param neg_map: input negative clicks map
+    :param img_height: height of an input image
+    :param img_width: width of an input image
+    :return: input tensor for segmentation model
+    """
     image_normalized = image / 255.0
 
-    pos_map = tf.convert_to_tensor(pos_map.reshape((IMAGE_HEIGHT, IMAGE_WIDTH, 1)))
+    pos_map = tf.convert_to_tensor(pos_map.reshape((img_height, img_width, 1)))
     pos_map = tf.cast(pos_map, dtype=tf.float32)
     pos_map = pos_map / 255.0
 
-    neg_map = tf.convert_to_tensor(neg_map.reshape((IMAGE_HEIGHT, IMAGE_WIDTH, 1)))
+    neg_map = tf.convert_to_tensor(neg_map.reshape((img_height, img_width, 1)))
     neg_map = tf.cast(neg_map, dtype=tf.float32)
     neg_map = neg_map / 255.0
 
@@ -60,41 +64,87 @@ class MplCanvas(FigureCanvas):
 
 
 class CellSegmentator:
-    def __init__(self, model_path, pos_clicks, neg_clicks):
+    def __init__(self, model_path, pos_clicks, neg_clicks, pos_clicks_scale, neg_clicks_scale, img_height, img_width):
+        """
+        Class using pre-trained model for semi-automatic image segmentation.
+
+        :param model_path: path to pre-trained model
+        :param pos_clicks: list of positive clicks coordinates
+        :param neg_clicks: list of negative clicks coordinates
+        :param pos_clicks_scale: scale factor of positive clicks map
+        :param neg_clicks_scale: scale factor of negative clicks map
+        :param img_height: height of the image
+        :param img_width: width of the image
+        """
         self.pos_clicks = pos_clicks
         self.neg_clicks = neg_clicks
+        self.pos_clicks_scale = pos_clicks_scale
+        self.neg_clicks_scale = neg_clicks_scale
+        self.img_height = img_height
+        self.img_width = img_width
 
         custom_objects = {JaccardLoss.__name__: JaccardLoss(),
                           iou.__name__: iou,
                           dice.__name__: dice}
+
         self.model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
         self.model.compile(loss=JaccardLoss(), optimizer="Adam", metrics=[iou, dice])
 
     def __generate_click_maps(self):
-        pos_map, neg_map = generate_click_maps(pos_clicks=self.pos_clicks,
-                                               neg_clicks=self.neg_clicks,
-                                               pos_click_map_scale=POS_CLICK_MAP_SCALE,
-                                               neg_click_map_scale=NEG_CLICK_MAP_SCALE)
+        """
+        Generates click maps from lists of positive and negative clicks coordinates.
+
+        :return: positive and negative clicks maps.
+        """
+        pos_map = create_gaussian_distance_map(shape=(self.img_height, self.img_width),
+                                               points=self.pos_clicks,
+                                               scale=self.pos_clicks_scale)
+
+        neg_map = create_gaussian_distance_map(shape=(self.img_height, self.img_width),
+                                               points=self.neg_clicks,
+                                               scale=self.neg_clicks_scale)
         return np.array(pos_map), np.array(neg_map)
 
     def segment(self, image):
+        """
+        Cuts target segmentation object from the image based on user interaction.
+
+        :param image: image on which segmentation is conducted
+        :return: cut target segmentation object
+        """
         pos_click_map, neg_click_map = self.__generate_click_maps()
         input_ = cancat_input_tensors(image=image,
                                       pos_map=pos_click_map,
-                                      neg_map=neg_click_map)
-        pred_mask = self.model.predict(input_)
-        cut_image = (np.array(image, dtype=np.float32) * np.array(pred_mask, dtype=np.float32))
-        return cut_image[0]
+                                      neg_map=neg_click_map,
+                                      img_height=self.img_height,
+                                      img_width=self.img_width)
+        prediction = self.model.predict(input_)
+        image, pred_mask = np.array(image, dtype=np.float32), np.array(prediction, dtype=np.float32)
+        pred_mask = np.where(pred_mask > 0.5, pred_mask, 0.0)
+        return (image * pred_mask)[0]
 
 
 class InteractiveCellSegmentator(QtWidgets.QMainWindow):
-    def __init__(self, img_width, img_height, img_path, img_dpi, *args, **kwargs):
+    def __init__(self, img_width: int, img_height: int, img_channels: int, img_path: str,
+                 segmentation_model: CellSegmentator, img_dpi: int, *args, **kwargs):
+        """
+        Interactive cell segmentator GUI.
+
+        :param img_width: height of the image
+        :param img_height: weight of the image
+        :param img_channels: number of image channels
+        :param img_path: path to the image
+        :param segmentation_model: CellSegmentator instance
+        :param img_dpi: resolution of an image
+        """
         super(InteractiveCellSegmentator, self).__init__(*args, **kwargs)
 
-        self.image = load_image(path=img_path)
+        self.image = load_image(path=img_path, img_channels=img_channels)
         self.pos_clicks = []
         self.neg_clicks = []
         self.pos_click = True
+        self.segmentation_model = segmentation_model
+        self.img_channels = img_channels
 
         # Widgets
         self.sc = MplCanvas(img_width=img_width, img_height=img_height, dpi=img_dpi)
@@ -103,6 +153,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.negative_click_btn = QRadioButton("Negative click")
         self.segment_click_btn = QPushButton("Segment cell")
         self.reset_click_btn = QPushButton("Reset image")
+        self.file_dialog_btn = QPushButton("Choose image")
 
         self.__setup_scene()
 
@@ -112,6 +163,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.negative_click_btn.toggled.connect(lambda: self.__on_click_type_change_click())
         self.segment_click_btn.clicked.connect(lambda: self.__on_segment_click())
         self.reset_click_btn.clicked.connect(lambda: self.__on_reset_click())
+        self.file_dialog_btn.clicked.connect(lambda: self.__on_file_dialog_click())
 
     def __setup_scene(self):
         layout = QVBoxLayout()
@@ -121,6 +173,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         layout.addWidget(self.negative_click_btn)
         layout.addWidget(self.segment_click_btn)
         layout.addWidget(self.reset_click_btn)
+        layout.addWidget(self.file_dialog_btn)
         widget = QWidget(flags=QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowMinimizeButtonHint)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -129,6 +182,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.negative_click_btn.setFont(QtGui.QFont('Arial', 12))
         self.segment_click_btn.setFont(QtGui.QFont('Arial', 12))
         self.reset_click_btn.setFont(QtGui.QFont('Arial', 12))
+        self.file_dialog_btn.setFont(QtGui.QFont('Arial', 12))
 
         self.positive_click_btn.setChecked(False)
         self.negative_click_btn.setChecked(False)
@@ -139,6 +193,11 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.sc.axes.imshow(self.image)
         self.show()
 
+    def __refresh_image(self):
+        self.sc.axes.cla()
+        self.sc.axes.imshow(self.image)
+        self.sc.fig.canvas.draw_idle()
+
     def __on_image_click(self, event):
         if not self.positive_click_btn.isChecked() and not self.negative_click_btn.isChecked():
             return
@@ -148,25 +207,25 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
 
         if self.pos_click:
             self.pos_clicks.append([int(event.xdata), int(event.ydata)])
-            print(f'x: {event.xdata} y: {event.ydata}')
+            print(f'Positive click coordinates x: {event.xdata} y: {event.ydata}')
         else:
             self.neg_clicks.append([int(event.xdata), int(event.ydata)])
-            print(f'x: {event.xdata} y: {event.ydata}')
+            print(f'Negative click coordinates x: {event.xdata} y: {event.ydata}')
 
     def __on_click_type_change_click(self):
         if self.positive_click_btn.isChecked():
             self.pos_click = True
-            self.sc.setCursor(QtGui.QCursor(QtGui.QPixmap("utils/pyqt_cursor_imgs/green.png")))
+            self.sc.setCursor(QtGui.QCursor(QtGui.QPixmap("../utils/pyqt_cursor_imgs/green.png")))
             self.negative_click_btn.setChecked(False)
         else:
             self.pos_click = False
-            self.sc.setCursor(QtGui.QCursor(QtGui.QPixmap("utils/pyqt_cursor_imgs/red.png")))
+            self.sc.setCursor(QtGui.QCursor(QtGui.QPixmap("../utils/pyqt_cursor_imgs/red.png")))
             self.positive_click_btn.setChecked(False)
 
     def __on_segment_click(self):
-        cell_segmentator.pos_clicks = self.pos_clicks
-        cell_segmentator.neg_clicks = self.neg_clicks
-        segmented_cell = cell_segmentator.segment(np.array(self.image))
+        self.segmentation_model.pos_clicks = self.pos_clicks
+        self.segmentation_model.neg_clicks = self.neg_clicks
+        segmented_cell = self.segmentation_model.segment(np.array(self.image))
 
         self.sc.axes.cla()
         self.sc.axes.imshow(segmented_cell)
@@ -175,38 +234,13 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
     def __on_reset_click(self):
         self.pos_clicks = []
         self.neg_clicks = []
+        self.__refresh_image()
 
-        self.sc.axes.cla()
-        self.sc.axes.imshow(self.image)
-        self.sc.fig.canvas.draw_idle()
+    def __on_file_dialog_click(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getOpenFileNames(self, "QFileDialog.getOpenFileName()", "",
+                                                   "All Files (*);;Python Files (*.py)", options=options)
 
-
-if __name__ == '__main__':
-    config = read_yaml_file("pipeline/config.yaml")
-
-    PROJECT_PATH = config["PROJECT_PATH"]
-    MODELS_PATH = config["MODELS_PATH"]
-    UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
-    DATA_PATH_TEST = config["DATA_PATH_TEST"]
-    TEST_IMAGE_PATH = config['TEST_IMAGE_PATH']
-    MODEL_PATH = PROJECT_PATH + MODELS_PATH + UNET_DP_MODEL_PATH
-
-    IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
-    IMAGE_WIDTH = config["IMAGE_WIDTH"]
-    IMAGE_CHANNELS = config["IMAGE_CHANNELS"]
-    POS_CLICK_MAP_SCALE = config["POS_CLICK_MAP_SCALE"]
-    NEG_CLICK_MAP_SCALE = config["NEG_CLICK_MAP_SCALE"]
-
-    WINDOW_X = config["WINDOW_X"]
-    WINDOW_Y = config["WINDOW_Y"]
-    WINDOW_SIZE = config["WINDOW_SIZE"]
-    IMG_DPI = config["IMG_DPI"]
-
-    cell_segmentator = CellSegmentator(model_path=MODEL_PATH, pos_clicks=None, neg_clicks=None)
-    app = QtWidgets.QApplication(sys.argv)
-    ics = InteractiveCellSegmentator(img_width=IMAGE_WIDTH,
-                                     img_height=IMAGE_HEIGHT,
-                                     img_dpi=IMG_DPI,
-                                     img_path=TEST_IMAGE_PATH)
-    ics.setGeometry(WINDOW_X, WINDOW_Y, WINDOW_SIZE, WINDOW_SIZE)
-    app.exec_()
+        self.image = load_image(path=filename[0], img_channels=self.img_channels)
+        self.__on_reset_click()
