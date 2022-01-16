@@ -61,14 +61,13 @@ def con2d_up_block(input_tensor, n_filters):
 class UnetDP:
     def __init__(self, img_height, img_width, img_channels, n_filters=16):
         """
-        Dual Path Unet.
+        Dual Path Unet proposed in: https://arxiv.org/abs/2011.02880
 
         :param img_height: height of the input image tensor
         :param img_width: width of the input image tensor
         :param img_channels: number of channels of the input image tensor=
         :param n_filters: base number of filters in the convolutional layers
         """
-
         input_ = Input((img_height, img_width, img_channels))
 
         x00 = conv2d_block(input_tensor=input_, n_filters=1 * n_filters, kernel=(3, 3))
