@@ -5,23 +5,25 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import concatenate, add
 from tensorflow.keras.models import Model
+
+from unet_architectures.attention_module import conv_block_attention_module
 
 
 def conv2d_block(input_tensor, n_filters, kernel):
     # First layer
     x = Conv2D(filters=n_filters, kernel_size=kernel, kernel_initializer='he_normal', padding='same')(input_tensor)
     x = BatchNormalization()(x)
-    x = Activation('relu')(x)
+    x = ReLU()(x)
 
     # Second layer
     x = Conv2D(filters=n_filters, kernel_size=kernel, kernel_initializer='he_normal',  padding='same')(x)
     x = BatchNormalization()(x)
-    x = Activation('relu')(x)
+    x = ReLU()(x)
 
-    return x
+    return conv_block_attention_module(x)
 
 
 def con2d_down_block(input_tensor, n_filters, kernel):
@@ -29,22 +31,22 @@ def con2d_down_block(input_tensor, n_filters, kernel):
     x1 = Conv2D(filters=n_filters, kernel_size=kernel, strides=(2, 2), kernel_initializer='he_normal',
                 padding='same')(input_tensor)
     x1 = BatchNormalization()(x1)
-    x1 = Activation('relu')(x1)
+    x1 = ReLU()(x1)
 
     # Second layer
     x1 = Conv2D(filters=n_filters, kernel_size=kernel, kernel_initializer='he_normal', padding='same')(x1)
     x1 = BatchNormalization()(x1)
-    x1 = Activation('relu')(x1)
+    x1 = ReLU()(x1)
 
     x0 = Conv2D(filters=n_filters, kernel_size=(1, 1), strides=(2, 2), kernel_initializer="he_normal")(input_tensor)
     x0 = BatchNormalization()(x0)
-    x0 = Activation('relu')(x0)
+    x0 = ReLU()(x0)
 
     x = add([x0, x1])
     x = BatchNormalization()(x)
-    x = Activation('relu')(x)
+    x = ReLU()(x)
 
-    return x
+    return conv_block_attention_module(x)
 
 
 def con2d_up_block(input_tensor, n_filters):
@@ -53,13 +55,13 @@ def con2d_up_block(input_tensor, n_filters):
     x1 = UpSampling2D()(input_tensor)
     x = add([x0, x1])
     x = BatchNormalization()(x)
-    x = Activation('relu')(x)
+    x = ReLU()(x)
 
-    return x
+    return conv_block_attention_module(x)
 
 
-class UnetDP:
-    def __init__(self, img_height, img_width, img_channels, n_filters=16):
+class DualPathUnet:
+    def __init__(self, img_height, img_width, img_channels, n_filters=8, attention=True):
         """
         Dual Path Unet proposed in: https://arxiv.org/abs/2011.02880
 

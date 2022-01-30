@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -8,7 +9,8 @@ from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
-from unet_architectures import unet_shallow, unet_dp
+from unet_architectures.ShallowUnet import ShallowUnet
+from unet_architectures.DualPathUnet import DualPathUnet
 
 
 def create_dataset(data_path: str) -> tuple:
@@ -38,12 +40,11 @@ def create_dataset(data_path: str) -> tuple:
     return dataset, train_dataset_size, val_dataset_size
 
 
-def build_model(model_arch: str, img_height: int, img_width: int, in_channels: int, loss: tf.keras.losses.Loss,
+def build_model(img_height: int, img_width: int, in_channels: int, loss: tf.keras.losses.Loss,
                 optimizer: tf.keras.optimizers.Optimizer, metrics: list):
     """
     Builds and compiles model.
 
-    :param model_arch: name of the u-net model to be used
     :param img_height: height of the image
     :param img_width: width of the image
     :param in_channels: number of input channels
@@ -52,10 +53,10 @@ def build_model(model_arch: str, img_height: int, img_width: int, in_channels: i
     :param metrics: metrics for training
     :return: Build and compiled model.
     """
-    if model_arch == "UNET_SHALLOW":
-        model = unet_shallow.Unet(img_height=img_height, img_width=img_width, img_channels=in_channels)
-    elif model_arch == "UNET_DP":
-        model = unet_dp.UnetDP(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    if UNET_SHALLOW:
+        model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels, attention=ATTENTION)
+    elif UNET_DUAL_PATH:
+        model = DualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels, attention=ATTENTION)
     else:
         raise NotImplementedError()
 
@@ -65,18 +66,20 @@ def build_model(model_arch: str, img_height: int, img_width: int, in_channels: i
     return model
 
 
-def make_callbacks(early_stop_patience: int, save_model_path: str) -> list:
+def make_callbacks(early_stop_patience: int, model: str) -> list:
     """
     Makes list of callbacks for model training.
 
     :param early_stop_patience: number of epochs with no improvement after which training will be stopped
-    :param save_model_path: path for saving the best model from ModelCheckpoint callback
+    :param model: path for saving the best model from ModelCheckpoint callback
     :return: list of callbacks
     """
+    save_path = os.path.join(MODELS_PATH, model + '.hdf5')
     log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
+
     callbacks = [
         EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
-        ModelCheckpoint(filepath=save_model_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
+        ModelCheckpoint(filepath=save_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
     ]
     return callbacks
@@ -108,9 +111,7 @@ if __name__ == '__main__':
     # Paths
     PROJECT_PATH = config["PROJECT_PATH"]
     DATA_PATH_TRAIN = PROJECT_PATH + config["DATA_PATH_TRAIN"]
-    MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
-    UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
-    UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
+    MODELS_PATH = config["MODELS_PATH"]
     TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
 
     # Train parameters
@@ -129,33 +130,29 @@ if __name__ == '__main__':
     INPUT_CHANNELS = config["INPUT_CHANNELS"]
 
     # Model parameters
-    MODELS = config["MODELS"]
     UNET_SHALLOW = config["UNET_SHALLOW"]
-    UNET_DP = config["UNET_DP"]
+    UNET_DUAL_PATH = config["UNET_DUAL_PATH"]
+    ATTENTION = config['ATTENTION']
     OPTIMIZER = config["OPTIMIZER"]
     METRICS = [iou, dice]
 
-    if UNET_SHALLOW:
-        model_path = MODELS_PATH + UNET_MODEL_PATH
-        model_name = MODELS[0]
-    elif UNET_DP:
-        model_path = MODELS_PATH + UNET_DP_MODEL_PATH
-        model_name = MODELS[1]
-    else:
-        raise NotImplementedError()
-
     segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH_TRAIN)
-    samples = segmentation_dataset['train'].take(1)
 
-    callbacks_list = make_callbacks(early_stop_patience=EARLY_STOP_PATIENCE, save_model_path=model_path)
-
-    unet = build_model(model_arch=model_name,
-                       img_width=IMAGE_WIDTH,
+    unet = build_model(img_width=IMAGE_WIDTH,
                        img_height=IMAGE_HEIGHT,
                        in_channels=INPUT_CHANNELS,
                        loss=JaccardLoss(),
                        optimizer=OPTIMIZER,
                        metrics=METRICS)
+
+    model_name = None
+    if ATTENTION:
+        model_name = unet.__class__.__name__ + '_attention'
+    else:
+        model_name = unet.__class__.__name__
+
+    callbacks_list = make_callbacks(early_stop_patience=EARLY_STOP_PATIENCE,
+                                    model=model_name)
 
     with tf.device("device:GPU:0"):
         history = unet.train(dataset=segmentation_dataset,

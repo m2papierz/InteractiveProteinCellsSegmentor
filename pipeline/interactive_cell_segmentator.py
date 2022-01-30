@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-from pipeline.generate_click_distance_maps import create_gaussian_distance_map
+from pipeline.generate_click_distance_maps import create_guidance_map
 from utils.loss_and_metrics import JaccardLoss, iou, dice
 
 matplotlib.use('Qt5Agg')
@@ -32,7 +32,7 @@ def load_image(path, img_channels):
 
 def cancat_input_tensors(image, pos_map, neg_map, img_height, img_width):
     """
-    Converts and concatenates image with clicks maps for an input of the segmentation model.
+    Converts and concatenates image with guidance maps for an input of the segmentation model.
 
     :param image: input image
     :param pos_map: input positive clicks map
@@ -92,17 +92,17 @@ class CellSegmentator:
 
     def __generate_click_maps(self):
         """
-        Generates click maps from lists of positive and negative clicks coordinates.
+        Generates guidance maps from lists of positive and negative clicks coordinates.
 
         :return: positive and negative clicks maps.
         """
-        pos_map = create_gaussian_distance_map(shape=(self.img_height, self.img_width),
-                                               points=self.pos_clicks,
-                                               scale=self.pos_clicks_scale)
+        pos_map = create_guidance_map(shape=(self.img_height, self.img_width),
+                                      points=self.pos_clicks,
+                                      scale=self.pos_clicks_scale)
 
-        neg_map = create_gaussian_distance_map(shape=(self.img_height, self.img_width),
-                                               points=self.neg_clicks,
-                                               scale=self.neg_clicks_scale)
+        neg_map = create_guidance_map(shape=(self.img_height, self.img_width),
+                                      points=self.neg_clicks,
+                                      scale=self.neg_clicks_scale)
         return np.array(pos_map), np.array(neg_map)
 
     def segment(self, image):

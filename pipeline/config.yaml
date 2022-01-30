@@ -9,9 +9,7 @@ NEG_CLICK_MAPS_PATH: "neg_click/"
 TEST_IMAGE_PATH: "../utils/test_image/test_img.png"
 
 # Paths to models
-MODELS_PATH: "models/"
-UNET_MODEL_PATH: "unet.hdf5"
-UNET_DP_MODEL_PATH: "unet_dp.hdf5"
+MODELS_PATH: "../models/"
 TENSORBOARD_LOGS_PATH: "D:\\Uczelnia\\Thesis\\logs\\"
 
 # Train parameters
@@ -32,9 +30,9 @@ POS_CLICK_MAP_SCALE: 2.0
 NEG_CLICK_MAP_SCALE: 3.5
 
 # Model parameters
-MODELS: ["UNET_SHALLOW", "UNET_DP"]
-UNET_SHALLOW: True
-UNET_DP: False
+UNET_SHALLOW: False
+UNET_DUAL_PATH: True
+ATTENTION: True
 OPTIMIZER: "Adam"
 
 # Interactive cell segmentator parameters
@@ -42,5 +40,3 @@ WINDOW_SIZE: 1000
 WINDOW_X: 700
 WINDOW_Y: 200
 IMG_DPI: 300
-
-

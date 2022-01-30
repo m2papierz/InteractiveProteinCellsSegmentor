@@ -1,3 +1,5 @@
+import os.path
+
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -5,6 +7,9 @@ from glob import glob
 from utils.loss_and_metrics import iou, dice, JaccardLoss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 from utils.image_processing import parse_images
+
+from unet_architectures.ShallowUnet import ShallowUnet
+from unet_architectures.DualPathUnet import DualPathUnet
 
 
 def create_test_dataset(data_path: str) -> tuple:
@@ -72,9 +77,7 @@ if __name__ == '__main__':
 
     PROJECT_PATH = config["PROJECT_PATH"]
     DATA_PATH_TEST = PROJECT_PATH + config["DATA_PATH_TEST"]
-    MODELS_PATH = PROJECT_PATH + config["MODELS_PATH"]
-    UNET_MODEL_PATH = config["UNET_MODEL_PATH"]
-    UNET_DP_MODEL_PATH = config["UNET_DP_MODEL_PATH"]
+    MODELS_PATH = config["MODELS_PATH"]
 
     BATCH_SIZE = config["BATCH_SIZE"]
     BUFFER_SIZE = config["BUFFER_SIZE"]
@@ -82,7 +85,8 @@ if __name__ == '__main__':
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
     SHALLOW_UNET = config["UNET_SHALLOW"]
-    UNET_DP = config["UNET_DP"]
+    UNET_DUAL_PATH = config["UNET_DUAL_PATH"]
+    ATTENTION = config['ATTENTION']
 
     segmentation_dataset, test_size = create_test_dataset(DATA_PATH_TEST)
     test_images = segmentation_dataset['test'].take(test_size)
@@ -91,10 +95,18 @@ if __name__ == '__main__':
                       dice.__name__: dice}
 
     if SHALLOW_UNET:
-        model_path = MODELS_PATH + UNET_MODEL_PATH
+        if ATTENTION:
+            model_name = ShallowUnet.__name__ + '_attention'
+        else:
+            model_name = ShallowUnet.__name__
+        model_path = os.path.join(MODELS_PATH, model_name + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    elif UNET_DP:
-        model_path = MODELS_PATH + UNET_DP_MODEL_PATH
+    elif UNET_DUAL_PATH:
+        if ATTENTION:
+            model_name = DualPathUnet.__name__ + '_attention'
+        else:
+            model_name = DualPathUnet.__name__
+        model_path = os.path.join(MODELS_PATH, model_name + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     else:
         raise NotImplementedError()
@@ -106,4 +118,4 @@ if __name__ == '__main__':
                    data_size=test_size,
                    batch_size=BATCH_SIZE)
 
-    show_predictions(model=best_model, images=test_images)
+    # show_predictions(model=best_model, images=test_images)
