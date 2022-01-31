@@ -13,8 +13,10 @@ def channel_attention(input_feature, ratio):
     :return: channel-refined feature map
     """
     channel = input_feature.shape[-1]
-    shared_layer_one = Dense(channel // ratio, kernel_initializer='he_normal', use_bias=True)
-    shared_layer_two = Dense(channel, kernel_initializer='he_normal', use_bias=True, bias_initializer='zeros')
+    shared_layer_one = Dense(channel // ratio, activation='relu', kernel_initializer='he_normal',
+                             use_bias=True, bias_initializer='zeros')
+    shared_layer_two = Dense(channel, activation='relu', kernel_initializer='he_normal',
+                             use_bias=True, bias_initializer='zeros')
 
     avg_pool = GlobalAveragePooling2D()(input_feature)
     avg_pool = Reshape((1, 1, channel))(avg_pool)
@@ -47,7 +49,7 @@ def spatial_attention(input_feature):
     return multiply([input_feature, spatial_feature])
 
 
-def conv_block_attention_module(input_feature, ratio=8):
+def conv_block_attention_module(input_feature, ratio=16):
     """
     Convolutional Block Attention Module proposed in: https://arxiv.org/abs/1807.06521
 
