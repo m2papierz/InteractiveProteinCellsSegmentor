@@ -2,32 +2,6 @@ import numpy as np
 import tensorflow as tf
 
 
-@tf.function
-def augment_images(data: dict) -> tuple:
-    """
-    Resizes and randomly augments input image.
-
-    :param data: dict containing an image and its mask
-    :return: Processed imaged and its mask.
-    """
-    input_image = data["input"]
-    input_mask = data['mask']
-
-    if tf.random.uniform(()) > 0.5:
-        input_image = tf.image.random_brightness(input_image, 0.3)
-        input_image = tf.image.random_contrast(input_image, 0.15, 0.4)
-
-    if tf.random.uniform(()) > 0.5:
-        input_image = tf.image.flip_left_right(input_image)
-        input_mask = tf.image.flip_left_right(input_mask)
-
-    if tf.random.uniform(()) > 0.5:
-        input_image = tf.image.flip_up_down(input_image)
-        input_mask = tf.image.flip_up_down(input_mask)
-
-    return input_image, input_mask
-
-
 def parse_images(image_path: str) -> tuple:
     """
     Loads and processes input images.
