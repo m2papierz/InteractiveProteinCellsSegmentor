@@ -84,7 +84,7 @@ if __name__ == '__main__':
     SEED = config["SEED"]
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-    SHALLOW_UNET = config["UNET_SHALLOW"]
+    UNET_SHALLOW = config["UNET_SHALLOW"]
     UNET_DUAL_PATH = config["UNET_DUAL_PATH"]
     ATTENTION = config['ATTENTION']
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
                       iou.__name__: iou,
                       dice.__name__: dice}
 
-    if SHALLOW_UNET:
+    if UNET_SHALLOW:
         if ATTENTION:
             model_name = ShallowUnet.__name__ + '_attention'
         else:
