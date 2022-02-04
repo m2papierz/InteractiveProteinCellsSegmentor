@@ -113,10 +113,10 @@ def create_and_save_guidance_maps(xml_files_path: str, pos_save: str, neg_save: 
                 if "neg_click" in label:
                     neg_coordinates.append(coordinates)
 
-            pos_map = create_guidance_map(shape=(IMAGE_HEIGHT, IMAGE_WIDTH), points=pos_coordinates,
-                                          image=True, scale=POS_CLICK_MAP_SCALE)
-            neg_map = create_guidance_map(shape=(IMAGE_HEIGHT, IMAGE_WIDTH), points=neg_coordinates,
-                                          image=True, scale=NEG_CLICK_MAP_SCALE)
+            pos_map = create_guidance_map(shape=(image_height, image_width), points=pos_coordinates,
+                                          image=True, scale=pos_click_map_scale)
+            neg_map = create_guidance_map(shape=(image_height, image_width), points=neg_coordinates,
+                                          image=True, scale=neg_click_map_scale)
 
             Image.fromarray(pos_map.astype(np.uint8)).save(pos_save + filename, "PNG")
             Image.fromarray(neg_map.astype(np.uint8)).save(neg_save + filename, "PNG")
@@ -125,28 +125,28 @@ def create_and_save_guidance_maps(xml_files_path: str, pos_save: str, neg_save: 
 if __name__ == '__main__':
     config = read_yaml_file("./config.yaml")
 
-    PROJECT_PATH = config["PROJECT_PATH"]
-    DATA_PATH_TRAIN = config["DATA_PATH_TRAIN"]
-    DATA_PATH_TEST = config["DATA_PATH_TEST"]
+    project_dir = config["project_dir"]
+    train_data_dir = config["train_data_dir"]
+    test_data_dir = config["DATA_PATH_TEST"]
 
-    ANNOTATIONS_XML_TRAIN_PATH = PROJECT_PATH + config["ANNOTATIONS_XML_TRAIN_PATH"]
-    ANNOTATIONS_XML_TEST_PATH = PROJECT_PATH + config["ANNOTATIONS_XML_TEST_PATH"]
-    POS_CLICK_MAPS_TRAIN_PATH = PROJECT_PATH + DATA_PATH_TRAIN + config["POS_CLICK_MAPS_PATH"]
-    NEG_CLICK_MAPS_TRAIN_PATH = PROJECT_PATH + DATA_PATH_TRAIN + config["NEG_CLICK_MAPS_PATH"]
-    POS_CLICK_MAPS_TEST_PATH = PROJECT_PATH + DATA_PATH_TEST + config["POS_CLICK_MAPS_PATH"]
-    NEG_CLICK_MAPS_TEST_PATH = PROJECT_PATH + DATA_PATH_TEST + config["NEG_CLICK_MAPS_PATH"]
+    train_annotations_dir = os.path.join(project_dir, config["train_annotations_dir"])
+    test_annotations_dir = os.path.join(project_dir, config["test_annotations_dir"])
+    train_pos_click_maps_dir = os.path.join(project_dir, train_data_dir + config["pos_click_maps_dir"])
+    train_neg_click_maps_dir = os.path.join(project_dir, train_data_dir + config["neg_click_maps_dir"])
+    test_pos_click_maps_dir = os.path.join(project_dir, test_data_dir + config["pos_click_maps_dir"])
+    test_neg_click_maps_dir = os.path.join(project_dir, test_data_dir + config["neg_click_maps_dir"])
 
-    IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
-    IMAGE_WIDTH = config["IMAGE_WIDTH"]
-    POS_CLICK_MAP_SCALE = config["POS_CLICK_MAP_SCALE"]
-    NEG_CLICK_MAP_SCALE = config["NEG_CLICK_MAP_SCALE"]
+    image_height = config["image_height"]
+    image_width = config["image_width"]
+    pos_click_map_scale = config["pos_click_map_scale"]
+    neg_click_map_scale = config["neg_click_map_scale"]
 
     print("\n----- GENERATING TRAIN GUIDANCE MAPS -----")
-    create_and_save_guidance_maps(xml_files_path=ANNOTATIONS_XML_TRAIN_PATH,
-                                  pos_save=POS_CLICK_MAPS_TRAIN_PATH,
-                                  neg_save=NEG_CLICK_MAPS_TRAIN_PATH)
+    create_and_save_guidance_maps(xml_files_path=train_annotations_dir,
+                                  pos_save=train_pos_click_maps_dir,
+                                  neg_save=train_neg_click_maps_dir)
 
     print("\n----- GENERATING TEST GUIDANCE MAPS -----")
-    create_and_save_guidance_maps(xml_files_path=ANNOTATIONS_XML_TEST_PATH,
-                                  pos_save=POS_CLICK_MAPS_TEST_PATH,
-                                  neg_save=NEG_CLICK_MAPS_TEST_PATH)
+    create_and_save_guidance_maps(xml_files_path=test_annotations_dir,
+                                  pos_save=test_pos_click_maps_dir,
+                                  neg_save=test_neg_click_maps_dir)

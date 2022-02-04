@@ -1,42 +1,41 @@
 # Paths to data
-PROJECT_PATH: "D:/Uczelnia/Thesis/"
-DATA_PATH_TRAIN: "segmentation_data/datasets/train_valid/"
-DATA_PATH_TEST: "segmentation_data/datasets/test/"
-ANNOTATIONS_XML_TRAIN_PATH: "segmentation_data/train_annotations/"
-ANNOTATIONS_XML_TEST_PATH: "segmentation_data/test_annotations/"
-POS_CLICK_MAPS_PATH: "pos_click/"
-NEG_CLICK_MAPS_PATH: "neg_click/"
-TEST_IMAGE_PATH: "../utils/test_image/test_img.png"
+project_dir: "D:/Uczelnia/Thesis/"
+train_data_dir: "segmentation_data/datasets/train_valid/"
+test_data_dir: "segmentation_data/datasets/test/"
+train_annotations_dir: "segmentation_data/train_annotations/"
+test_annotations_dir: "segmentation_data/test_annotations/"
+pos_click_maps_dir: "pos_click/"
+neg_click_maps_dir: "neg_click/"
+test_image_path: "../utils/test_image/test_img.png"
 
 # Paths to models
-MODELS_PATH: "../models/"
-TENSORBOARD_LOGS_PATH: "D:\\Uczelnia\\Thesis\\logs\\"
+models_dir: "../models/"
+tensorboard_logs_dir: "D:\\Uczelnia\\Thesis\\logs\\"
 
 # Train parameters
-BATCH_SIZE: 2
-EPOCHS: 300
-EARLY_STOP_PATIENCE: 20
-TRAIN_RATIO: 0.90
-VAL_RATIO: 0.1
-BUFFER_SIZE: 128
-SEED: 42
+batch_size: 2
+epochs: 300
+early_stop_patience: 20
+reduce_on_plateau_patience: 15
+train_val_ratio: 0.90
+buffer_size: 128
+seed: 42
 
 # Data parameters
-IMAGE_HEIGHT: 512
-IMAGE_WIDTH: 512
-IMAGE_CHANNELS: 3
-INPUT_CHANNELS: 5
-POS_CLICK_MAP_SCALE: 2.0
-NEG_CLICK_MAP_SCALE: 3.5
+image_height: 512
+image_width: 512
+image_channels: 3
+input_channels: 5
+pos_click_map_scale: 2.0
+neg_click_map_scale: 3.5
 
 # Model parameters
-UNET_SHALLOW: False
-UNET_DUAL_PATH: True
-ATTENTION: False
-OPTIMIZER: "Adam"
+shallow: True
+dual_path: False
+attention_dual_path: False
 
 # Interactive cell segmentator parameters
-WINDOW_SIZE: 1000
-WINDOW_X: 700
-WINDOW_Y: 200
-IMG_DPI: 300
+window_size: 1000
+window_x: 700
+window_y: 200
+img_dpi: 300
