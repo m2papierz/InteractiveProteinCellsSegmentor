@@ -2,12 +2,14 @@ import tensorflow as tf
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Conv2D
-from tensorflow.keras.layers import Conv2DTranspose
+from tensorflow.keras.layers import Conv2DTranspose, MaxPooling2D
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import concatenate, add
 from tensorflow.keras.models import Model
+
+from unet_architectures.attention_module import conv_block_attention_module
 
 
 def conv2d_block(input_tensor: tf.Tensor, n_filters: int) -> tf.Tensor:
@@ -19,42 +21,21 @@ def conv2d_block(input_tensor: tf.Tensor, n_filters: int) -> tf.Tensor:
     :return: output tensor of two convolutional layers
     """
     # First layer
-    x = BatchNormalization()(input_tensor)
-    x = ReLU()(x)
-    x = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(1, 1), kernel_initializer='he_normal',
-               padding='same')(x)
+    x0 = BatchNormalization()(input_tensor)
+    x0 = ReLU()(x0)
+    x0 = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(1, 1), kernel_initializer='he_normal',
+                padding='same')(x0)
 
     # Second layer
-    x = BatchNormalization()(x)
-    x = ReLU()(x)
-    x = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(1, 1), kernel_initializer='he_normal',
-               padding='same')(x)
+    x0 = BatchNormalization()(x0)
+    x0 = ReLU()(x0)
+    x0 = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(1, 1), kernel_initializer='he_normal',
+                padding='same')(x0)
 
-    return x
+    x1 = Conv2D(filters=n_filters, kernel_size=(1, 1), padding='same', kernel_initializer="he_normal")(input_tensor)
 
-
-def con2d_down_block(input_tensor, n_filters):
-    """
-    Down-sampling convolutional block.
-    :param input_tensor: input tensor of the convolutional block
-    :param n_filters: number of filters in the convolutional layer
-    :return: result of down-sampling
-    """
-    # First layer
-    x1 = BatchNormalization()(input_tensor)
-    x1 = ReLU()(x1)
-    x1 = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(2, 2), kernel_initializer='he_normal',
-                padding='same')(x1)
-
-    # Second layer
-    x1 = BatchNormalization()(x1)
-    x1 = ReLU()(x1)
-    x1 = Conv2D(filters=n_filters, kernel_size=(3, 3), strides=(1, 1), kernel_initializer='he_normal',
-                padding='same')(x1)
-
-    x0 = Conv2D(filters=n_filters, kernel_size=(1, 1), strides=(2, 2), kernel_initializer="he_normal")(input_tensor)
-
-    return add([x0, x1])
+    # return add([x0, x1])
+    return x0
 
 
 def con2d_up_block(input_tensor, n_filters):
@@ -73,43 +54,46 @@ def con2d_up_block(input_tensor, n_filters):
 
 
 class DualPathUnet:
-    def __init__(self, img_height, img_width, img_channels, n_filters=16):
+    def __init__(self, img_height, img_width, img_channels, n_filters=16, attention=True):
         """
-        Dual Path Unet proposed in: https://arxiv.org/abs/2011.02880
+        Dual Path Unet based on architecture proposed in: https://arxiv.org/abs/2011.02880
 
         :param img_height: height of the input image tensor
         :param img_width: width of the input image tensor
-        :param img_channels: number of channels of the input image tensor=
+        :param img_channels: number of channels of the input image tensor
         :param n_filters: base number of filters in the convolutional layers
+        :param attention: flag indicating if to apply attention module
         """
+        self.attention = attention
+
         input_ = Input((img_height, img_width, img_channels))
 
         x00 = conv2d_block(input_tensor=input_, n_filters=1 * n_filters)
-        d00 = con2d_down_block(input_tensor=x00, n_filters=1 * n_filters)
+        d00 = MaxPooling2D((2, 2))(x00)
 
         x10 = conv2d_block(input_tensor=d00, n_filters=2 * n_filters)
-        d10 = con2d_down_block(input_tensor=x10, n_filters=2 * n_filters)
+        d10 = MaxPooling2D((2, 2))(x10)
 
         x20 = conv2d_block(input_tensor=d10, n_filters=4 * n_filters)
-        d20 = con2d_down_block(input_tensor=x20, n_filters=4 * n_filters)
+        d20 = MaxPooling2D((2, 2))(x20)
 
         x30 = conv2d_block(input_tensor=d20, n_filters=8 * n_filters)
-        d30 = con2d_down_block(input_tensor=x30, n_filters=8 * n_filters)
+        d30 = MaxPooling2D((2, 2))(x30)
 
         x01 = conv2d_block(input_tensor=x00, n_filters=1 * n_filters)
-        d01 = con2d_down_block(input_tensor=x01, n_filters=1 * n_filters)
+        d01 = MaxPooling2D((2, 2))(x01)
 
         m = conv2d_block(input_tensor=d30, n_filters=16 * n_filters)
 
         x11 = concatenate([d01, x10])
         x11 = conv2d_block(input_tensor=x11, n_filters=2 * n_filters)
-        d11 = con2d_down_block(input_tensor=x11, n_filters=2 * n_filters)
+        d11 = MaxPooling2D((2, 2))(x11)
 
         u01 = con2d_up_block(input_tensor=x30, n_filters=n_filters * 8)
 
         x21 = concatenate([d11, x20, u01])
         x21 = conv2d_block(input_tensor=x21, n_filters=4 * n_filters)
-        d21 = con2d_down_block(input_tensor=x21, n_filters=4 * n_filters)
+        d21 = MaxPooling2D((2, 2))(x21)
 
         u00 = con2d_up_block(input_tensor=m, n_filters=n_filters * 16)
 

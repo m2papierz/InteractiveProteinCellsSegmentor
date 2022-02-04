@@ -20,26 +20,27 @@ def create_test_dataset(data_path: str) -> tuple:
     :return: dataset tuple and its size
     """
     dataset_size = len(glob(data_path + "image/*.png"))
+    autotune = tf.data.experimental.AUTOTUNE
 
-    test_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
-    test_dataset = test_dataset.map(parse_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    test_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=seed)
+    test_dataset = test_dataset.map(parse_images, num_parallel_calls=autotune)
 
     dataset = {"test": test_dataset}
-    dataset['test'] = config_data_pipeline_performance(dataset['test'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
+    dataset['test'] = config_data_pipeline_performance(dataset['test'], False, batch_size, batch_size, seed, autotune)
 
     return dataset, dataset_size
 
 
-def evaluate_model(model: tf.keras.models.Model, dataset: dict, data_size: int, batch_size: int) -> None:
+def evaluate_model(model: tf.keras.models.Model, dataset: dict, data_size: int, batch: int) -> None:
     """
     Evaluates the model.
 
     :param model: model to evaluate
     :param dataset: test dataset
     :param data_size: size of test dataset
-    :param batch_size: batch size
+    :param batch: batch size
     """
-    test_steps = tf.floor(data_size / batch_size)
+    test_steps = tf.floor(data_size / batch)
     loss, iou_score, dice_score = model.evaluate(dataset['test'], steps=test_steps)
 
     print(f"Loss: {loss}")
@@ -75,47 +76,35 @@ def show_predictions(model: tf.keras.Model, images: tuple) -> None:
 if __name__ == '__main__':
     config = read_yaml_file("./config.yaml")
 
-    PROJECT_PATH = config["PROJECT_PATH"]
-    DATA_PATH_TEST = PROJECT_PATH + config["DATA_PATH_TEST"]
-    MODELS_PATH = config["MODELS_PATH"]
+    project_dir = config["project_dir"]
+    test_data_dir = project_dir + config["test_data_dir"]
+    models_dir = config["models_dir"]
 
-    BATCH_SIZE = config["BATCH_SIZE"]
-    BUFFER_SIZE = config["BUFFER_SIZE"]
-    SEED = config["SEED"]
-    AUTOTUNE = tf.data.experimental.AUTOTUNE
+    batch_size = config["batch_size"]
+    buffer_size = config["buffer_size"]
+    seed = config["seed"]
 
-    UNET_SHALLOW = config["UNET_SHALLOW"]
-    UNET_DUAL_PATH = config["UNET_DUAL_PATH"]
-    ATTENTION = config['ATTENTION']
+    shallow = config["shallow"]
+    dual_path = config["dual_path"]
 
-    segmentation_dataset, test_size = create_test_dataset(DATA_PATH_TEST)
+    segmentation_dataset, test_size = create_test_dataset(test_data_dir)
     test_images = segmentation_dataset['test'].take(test_size)
     custom_objects = {JaccardLoss.__name__: JaccardLoss(),
                       iou.__name__: iou,
                       dice.__name__: dice}
 
-    if UNET_SHALLOW:
-        if ATTENTION:
-            model_name = ShallowUnet.__name__ + '_attention'
-        else:
-            model_name = ShallowUnet.__name__
-        model_path = os.path.join(MODELS_PATH, model_name + '.hdf5')
+    if shallow:
+        model_path = os.path.join(models_dir, ShallowUnet.__name__ + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    elif UNET_DUAL_PATH:
-        if ATTENTION:
-            model_name = DualPathUnet.__name__ + '_attention'
-        else:
-            model_name = DualPathUnet.__name__
-        model_path = os.path.join(MODELS_PATH, model_name + '.hdf5')
+    elif dual_path:
+        model_path = os.path.join(models_dir, DualPathUnet.__name__ + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     else:
         raise NotImplementedError()
 
-    best_model.compile(loss=JaccardLoss(), optimizer="Adam", metrics=[iou, dice])
+    best_model.compile(loss=JaccardLoss(), optimizer=tf.optimizers.Adam(), metrics=[iou, dice])
 
     evaluate_model(model=best_model,
                    dataset=segmentation_dataset,
                    data_size=test_size,
-                   batch_size=BATCH_SIZE)
-
-    # show_predictions(model=best_model, images=test_images)
+                   batch=batch_size)

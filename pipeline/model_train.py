@@ -8,7 +8,8 @@ from utils.configuaration import config_data_pipeline_performance, read_yaml_fil
 from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+
 from unet_architectures.ShallowUnet import ShallowUnet
 from unet_architectures.DualPathUnet import DualPathUnet
 
@@ -20,13 +21,14 @@ def create_dataset(data_path: str) -> tuple:
     :param data_path: path to the data
     :return: tuple with dataset, train dataset size and validation dataset size
     """
+    autotune = tf.data.experimental.AUTOTUNE
 
-    full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=SEED)
+    full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=seed)
     full_dataset = full_dataset.map(parse_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     dataset_size = tf.data.experimental.cardinality(full_dataset).numpy()
-    train_dataset_size = int(TRAIN_RATIO * dataset_size)
-    val_dataset_size = int(VAL_RATIO * dataset_size)
+    train_dataset_size = int(train_val_ratio * dataset_size)
+    val_dataset_size = int((1 - train_val_ratio) * dataset_size)
 
     train_dataset = full_dataset.take(train_dataset_size)
     remaining = full_dataset.skip(train_dataset_size)
@@ -34,8 +36,8 @@ def create_dataset(data_path: str) -> tuple:
 
     dataset = {"train": train_dataset, "val": val_dataset}
 
-    dataset['train'] = config_data_pipeline_performance(dataset['train'], True, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
-    dataset['val'] = config_data_pipeline_performance(dataset['val'], False, BUFFER_SIZE, BATCH_SIZE, SEED, AUTOTUNE)
+    dataset['train'] = config_data_pipeline_performance(dataset['train'], True, buffer_size, batch_size, seed, autotune)
+    dataset['val'] = config_data_pipeline_performance(dataset['val'], False, buffer_size, batch_size, seed, autotune)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -53,10 +55,10 @@ def build_model(img_height: int, img_width: int, in_channels: int, loss: tf.kera
     :param metrics: metrics for training
     :return: Build and compiled model.
     """
-    if UNET_SHALLOW:
-        model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels, attention=ATTENTION)
-    elif UNET_DUAL_PATH:
-        model = DualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels, attention=ATTENTION)
+    if shallow:
+        model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    elif dual_path:
+        model = DualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     else:
         raise NotImplementedError()
 
@@ -66,20 +68,20 @@ def build_model(img_height: int, img_width: int, in_channels: int, loss: tf.kera
     return model
 
 
-def make_callbacks(early_stop_patience: int, model: str) -> list:
+def make_callbacks(model_name: str) -> list:
     """
     Makes list of callbacks for model training.
 
-    :param early_stop_patience: number of epochs with no improvement after which training will be stopped
-    :param model: path for saving the best model from ModelCheckpoint callback
+    :param model_name: name of the model architecture
     :return: list of callbacks
     """
-    save_path = os.path.join(MODELS_PATH, model + '.hdf5')
-    log_dir = TENSORBOARD_LOGS_PATH + datetime.now().strftime("%Y%m%d-%H%M%S")
+    save_path = os.path.join(models_dir, model_name + '.hdf5')
+    log_dir = tensorboard_logs_dir + datetime.now().strftime("%Y%m%d-%H%M%S")
 
     callbacks = [
         EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
         ModelCheckpoint(filepath=save_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
+        ReduceLROnPlateau(monitor="val_loss", factor=0.1, patience=reduce_on_plateau_patience),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
     ]
     return callbacks
@@ -109,57 +111,46 @@ if __name__ == '__main__':
     config = read_yaml_file("./config.yaml")
 
     # Paths
-    PROJECT_PATH = config["PROJECT_PATH"]
-    DATA_PATH_TRAIN = PROJECT_PATH + config["DATA_PATH_TRAIN"]
-    MODELS_PATH = config["MODELS_PATH"]
-    TENSORBOARD_LOGS_PATH = config["TENSORBOARD_LOGS_PATH"]
+    project_dir = config["project_dir"]
+    train_data_dir = project_dir + config["train_data_dir"]
+    models_dir = config["models_dir"]
+    tensorboard_logs_dir = config["tensorboard_logs_dir"]
 
     # Train parameters
-    BATCH_SIZE = config["BATCH_SIZE"]
-    BUFFER_SIZE = config["BUFFER_SIZE"]
-    SEED = config["SEED"]
-    EPOCHS = config["EPOCHS"]
-    EARLY_STOP_PATIENCE = config["EARLY_STOP_PATIENCE"]
-    TRAIN_RATIO = config["TRAIN_RATIO"]
-    VAL_RATIO = config["VAL_RATIO"]
-    AUTOTUNE = tf.data.experimental.AUTOTUNE
+    batch_size = config["batch_size"]
+    buffer_size = config["buffer_size"]
+    seed = config["seed"]
+    epochs = config["epochs"]
+    early_stop_patience = config["early_stop_patience"]
+    reduce_on_plateau_patience = config["reduce_on_plateau_patience"]
+    train_val_ratio = config["train_val_ratio"]
 
     # Image parameters
-    IMAGE_HEIGHT = config["IMAGE_HEIGHT"]
-    IMAGE_WIDTH = config["IMAGE_WIDTH"]
-    INPUT_CHANNELS = config["INPUT_CHANNELS"]
+    image_height = config["image_height"]
+    image_width = config["image_width"]
+    input_channels = config["input_channels"]
 
     # Model parameters
-    UNET_SHALLOW = config["UNET_SHALLOW"]
-    UNET_DUAL_PATH = config["UNET_DUAL_PATH"]
-    ATTENTION = config['ATTENTION']
-    OPTIMIZER = config["OPTIMIZER"]
-    METRICS = [iou, dice]
+    shallow = config["shallow"]
+    dual_path = config["dual_path"]
 
-    segmentation_dataset, train_size, val_size = create_dataset(DATA_PATH_TRAIN)
+    segmentation_dataset, train_size, val_size = create_dataset(train_data_dir)
 
-    unet = build_model(img_width=IMAGE_WIDTH,
-                       img_height=IMAGE_HEIGHT,
-                       in_channels=INPUT_CHANNELS,
+    unet = build_model(img_width=image_height,
+                       img_height=image_width,
+                       in_channels=input_channels,
                        loss=JaccardLoss(),
-                       optimizer=OPTIMIZER,
-                       metrics=METRICS)
+                       optimizer=tf.optimizers.Adam(),
+                       metrics=[iou, dice])
 
-    model_name = None
-    if ATTENTION:
-        model_name = unet.__class__.__name__ + '_attention'
-    else:
-        model_name = unet.__class__.__name__
-
-    callbacks_list = make_callbacks(early_stop_patience=EARLY_STOP_PATIENCE,
-                                    model=model_name)
+    callbacks_list = make_callbacks(model_name=unet.__class__.__name__)
 
     with tf.device("device:GPU:0"):
         history = unet.train(dataset=segmentation_dataset,
                              train_size=train_size,
                              val_size=val_size,
-                             batch_size=BATCH_SIZE,
-                             epochs=EPOCHS,
+                             batch_size=batch_size,
+                             epochs=epochs,
                              callbacks=callbacks_list)
 
     plot_history(history)
