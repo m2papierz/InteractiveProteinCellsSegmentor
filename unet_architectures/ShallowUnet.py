@@ -9,6 +9,8 @@ from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.models import Model
 
+from utils.configuaration import read_yaml_file
+
 
 def conv2d_block(input_tensor: tf.Tensor, n_filters: int) -> tf.Tensor:
     """
@@ -98,3 +100,19 @@ class ShallowUnet:
                               validation_steps=val_steps,
                               epochs=epochs,
                               callbacks=callbacks)
+
+
+if __name__ == '__main__':
+    config = read_yaml_file("../pipeline/config.yaml")
+
+    image_height = config['image_height']
+    image_width = config['image_width']
+    input_channels = config['input_channels']
+
+    model = ShallowUnet(
+        img_height=image_height,
+        img_width=image_width,
+        img_channels=input_channels
+    )
+
+    model.model.summary()
