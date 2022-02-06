@@ -1,5 +1,4 @@
 import os.path
-
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -10,6 +9,7 @@ from utils.image_processing import parse_images
 
 from unet_architectures.ShallowUnet import ShallowUnet
 from unet_architectures.DualPathUnet import DualPathUnet
+from unet_architectures.AttentionDualPath import AttentionDualPathUnet
 
 
 def create_test_dataset(data_path: str) -> tuple:
@@ -86,6 +86,7 @@ if __name__ == '__main__':
 
     shallow = config["shallow"]
     dual_path = config["dual_path"]
+    attention_dual_path = config["attention_dual_path"]
 
     segmentation_dataset, test_size = create_test_dataset(test_data_dir)
     test_images = segmentation_dataset['test'].take(test_size)
@@ -98,6 +99,9 @@ if __name__ == '__main__':
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     elif dual_path:
         model_path = os.path.join(models_dir, DualPathUnet.__name__ + '.hdf5')
+        best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+    elif attention_dual_path:
+        model_path = os.path.join(models_dir, AttentionDualPathUnet.__name__ + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     else:
         raise NotImplementedError()

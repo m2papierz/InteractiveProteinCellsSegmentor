@@ -1,4 +1,4 @@
-import os
+import os.path
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -8,10 +8,11 @@ from utils.configuaration import config_data_pipeline_performance, read_yaml_fil
 from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
-from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 from unet_architectures.ShallowUnet import ShallowUnet
 from unet_architectures.DualPathUnet import DualPathUnet
+from unet_architectures.AttentionDualPath import AttentionDualPathUnet
 
 
 def create_dataset(data_path: str) -> tuple:
@@ -36,8 +37,10 @@ def create_dataset(data_path: str) -> tuple:
 
     dataset = {"train": train_dataset, "val": val_dataset}
 
-    dataset['train'] = config_data_pipeline_performance(dataset['train'], True, buffer_size, batch_size, seed, autotune)
-    dataset['val'] = config_data_pipeline_performance(dataset['val'], False, buffer_size, batch_size, seed, autotune)
+    dataset['train'] = config_data_pipeline_performance(
+        dataset['train'], True, buffer_size, batch_size, seed, autotune)
+    dataset['val'] = config_data_pipeline_performance(
+        dataset['val'], False, buffer_size, batch_size, seed, autotune)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -59,6 +62,8 @@ def build_model(img_height: int, img_width: int, in_channels: int, loss: tf.kera
         model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     elif dual_path:
         model = DualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    elif attention_dual_path:
+        model = AttentionDualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     else:
         raise NotImplementedError()
 
@@ -81,7 +86,6 @@ def make_callbacks(model_name: str) -> list:
     callbacks = [
         EarlyStopping(monitor="val_loss", patience=early_stop_patience, mode="min", verbose=1),
         ModelCheckpoint(filepath=save_path, monitor="val_loss", verbose=1, save_best_only=True, mode="min"),
-        ReduceLROnPlateau(monitor="val_loss", factor=0.1, patience=reduce_on_plateau_patience),
         TensorBoard(log_dir=log_dir, histogram_freq=1, profile_batch=0)
     ]
     return callbacks
@@ -122,7 +126,6 @@ if __name__ == '__main__':
     seed = config["seed"]
     epochs = config["epochs"]
     early_stop_patience = config["early_stop_patience"]
-    reduce_on_plateau_patience = config["reduce_on_plateau_patience"]
     train_val_ratio = config["train_val_ratio"]
 
     # Image parameters
@@ -133,6 +136,7 @@ if __name__ == '__main__':
     # Model parameters
     shallow = config["shallow"]
     dual_path = config["dual_path"]
+    attention_dual_path = config["attention_dual_path"]
 
     segmentation_dataset, train_size, val_size = create_dataset(train_data_dir)
 
@@ -152,5 +156,3 @@ if __name__ == '__main__':
                              batch_size=batch_size,
                              epochs=epochs,
                              callbacks=callbacks_list)
-
-    plot_history(history)
