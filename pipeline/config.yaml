@@ -15,8 +15,7 @@ tensorboard_logs_dir: "D:\\Uczelnia\\Thesis\\logs\\"
 # Train parameters
 batch_size: 2
 epochs: 300
-early_stop_patience: 20
-reduce_on_plateau_patience: 15
+early_stop_patience: 15
 train_val_ratio: 0.90
 buffer_size: 128
 seed: 42
@@ -30,9 +29,9 @@ pos_click_map_scale: 2.0
 neg_click_map_scale: 3.5
 
 # Model parameters
-shallow: True
+shallow: False
 dual_path: False
-attention_dual_path: False
+attention_dual_path: True
 
 # Interactive cell segmentator parameters
 window_size: 1000
