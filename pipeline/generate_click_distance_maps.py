@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     project_dir = config["project_dir"]
     train_data_dir = config["train_data_dir"]
-    test_data_dir = config["DATA_PATH_TEST"]
+    test_data_dir = config["test_data_dir"]
 
     train_annotations_dir = os.path.join(project_dir, config["train_annotations_dir"])
     test_annotations_dir = os.path.join(project_dir, config["test_annotations_dir"])
