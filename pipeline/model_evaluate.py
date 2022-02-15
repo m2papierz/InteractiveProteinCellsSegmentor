@@ -1,15 +1,16 @@
-import os.path
+import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from glob import glob
 from utils.loss_and_metrics import iou, dice, JaccardLoss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
-from utils.image_processing import parse_images
 
-from unet_architectures.ShallowUnet import ShallowUnet
-from unet_architectures.DualPathUnet import DualPathUnet
-from unet_architectures.AttentionDualPath import AttentionDualPathUnet
+from model_architectures.ShallowUnet import ShallowUnet
+from model_architectures.FCN import FCN
+from model_architectures.AttentionDualPath import AttentionDualPathUnet
+
+from model_train import process_images
 
 
 def create_test_dataset(data_path: str) -> tuple:
@@ -19,14 +20,15 @@ def create_test_dataset(data_path: str) -> tuple:
     :param data_path: path data
     :return: dataset tuple and its size
     """
-    dataset_size = len(glob(data_path + "image/*.png"))
     autotune = tf.data.experimental.AUTOTUNE
+    dataset_size = len(glob(data_path + "image/*.png"))
 
     test_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=seed)
-    test_dataset = test_dataset.map(parse_images, num_parallel_calls=autotune)
+    test_dataset = test_dataset.map(process_images, num_parallel_calls=autotune)
 
     dataset = {"test": test_dataset}
-    dataset['test'] = config_data_pipeline_performance(dataset['test'], False, batch_size, batch_size, seed, autotune)
+    dataset['test'] = config_data_pipeline_performance(
+        dataset=dataset['test'], shuffle=False, buffer_size=buffer_size, batch_size=batch_size, seed=seed)
 
     return dataset, dataset_size
 
@@ -84,8 +86,8 @@ if __name__ == '__main__':
     buffer_size = config["buffer_size"]
     seed = config["seed"]
 
-    shallow = config["shallow"]
-    dual_path = config["dual_path"]
+    shallow_unet = config["shallow_unet"]
+    fcn = config["fcn"]
     attention_dual_path = config["attention_dual_path"]
 
     segmentation_dataset, test_size = create_test_dataset(test_data_dir)
@@ -94,11 +96,11 @@ if __name__ == '__main__':
                       iou.__name__: iou,
                       dice.__name__: dice}
 
-    if shallow:
+    if shallow_unet:
         model_path = os.path.join(models_dir, ShallowUnet.__name__ + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
-    elif dual_path:
-        model_path = os.path.join(models_dir, DualPathUnet.__name__ + '.hdf5')
+    elif fcn:
+        model_path = os.path.join(models_dir, FCN.__name__ + '.hdf5')
         best_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
     elif attention_dual_path:
         model_path = os.path.join(models_dir, AttentionDualPathUnet.__name__ + '.hdf5')

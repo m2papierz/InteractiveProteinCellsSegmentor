@@ -1,35 +1,75 @@
-import os.path
+import os
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from datetime import datetime
 from utils.loss_and_metrics import iou, dice, JaccardLoss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
-from utils.image_processing import parse_images
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint
 
-from unet_architectures.ShallowUnet import ShallowUnet
-from unet_architectures.DualPathUnet import DualPathUnet
-from unet_architectures.AttentionDualPath import AttentionDualPathUnet
+from model_architectures.ShallowUnet import ShallowUnet
+from model_architectures.FCN import FCN
+from model_architectures.AttentionDualPath import AttentionDualPathUnet
 
 
-def create_dataset(data_path: str) -> tuple:
+def parse_image(path: str, channels: int, mask=False) -> tf.Tensor:
+    """
+    Reads, decodes and converts image into tf.Tensor
+
+    :param path: path to the image
+    :param channels: number of image channels
+    :param mask: flag indicating if segmentation mask is parsed
+    :return: parsed image
+    """
+    image = tf.io.read_file(path)
+    image = tf.image.decode_png(image, channels=channels)
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    if mask:
+        image = tf.where(image > 0.0, np.dtype('float32').type(1),
+                         np.dtype('float32').type(0))
+    return image
+
+
+def process_images(image_path: str) -> tuple:
+    """
+    Processes images fetched  by the tf.Dataset instance.
+
+    :param image_path: path to the image (loaded automatically by tf.Dataset)
+    :return: tuple with input tensor and segmentation mask tensor
+    """
+    pos_click_map_path = tf.strings.regex_replace(image_path, "image", "pos_click")
+    neg_click_map_path = tf.strings.regex_replace(image_path, "image", "neg_click")
+    mask_path = tf.strings.regex_replace(image_path, "image", "mask")
+
+    # Parse images
+    hpa_image = parse_image(path=image_path, channels=3) / 255.0
+    pos_click_map = parse_image(path=pos_click_map_path, channels=1)
+    neg_click_map = parse_image(path=neg_click_map_path, channels=1)
+    seg_mask = parse_image(path=mask_path, channels=1, mask=True)
+
+    input_tensor = tf.concat([hpa_image, pos_click_map, neg_click_map], axis=2)
+
+    return input_tensor, seg_mask
+
+
+def create_train_and_val_dataset(data_path: str) -> tuple:
     """
     Creates train and validation datasets.
 
-    :param data_path: path to the data
-    :return: tuple with dataset, train dataset size and validation dataset size
+    :param data_path: path to the images
+    :return: tuple with dataset dictionary, train dataset size and validation dataset size
     """
     autotune = tf.data.experimental.AUTOTUNE
 
     full_dataset = tf.data.Dataset.list_files(data_path + "image/*.png", seed=seed)
-    full_dataset = full_dataset.map(parse_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    full_dataset = full_dataset.map(process_images, num_parallel_calls=autotune)
 
     dataset_size = tf.data.experimental.cardinality(full_dataset).numpy()
     train_dataset_size = int(train_val_ratio * dataset_size)
-    val_dataset_size = int((1 - train_val_ratio) * dataset_size)
+    val_dataset_size = dataset_size - train_dataset_size
 
     train_dataset = full_dataset.take(train_dataset_size)
     remaining = full_dataset.skip(train_dataset_size)
@@ -38,9 +78,11 @@ def create_dataset(data_path: str) -> tuple:
     dataset = {"train": train_dataset, "val": val_dataset}
 
     dataset['train'] = config_data_pipeline_performance(
-        dataset['train'], True, buffer_size, batch_size, seed, autotune)
+        dataset=dataset['train'], shuffle=True, buffer_size=buffer_size,
+        batch_size=batch_size, seed=seed)
     dataset['val'] = config_data_pipeline_performance(
-        dataset['val'], False, buffer_size, batch_size, seed, autotune)
+        dataset=dataset['val'], shuffle=False, buffer_size=buffer_size,
+        batch_size=batch_size, seed=seed)
 
     return dataset, train_dataset_size, val_dataset_size
 
@@ -55,22 +97,22 @@ def build_model(img_height: int, img_width: int, in_channels: int, loss: tf.kera
     :param in_channels: number of input channels
     :param loss: loss function
     :param optimizer: optimizer
-    :param metrics: metrics for training
-    :return: Build and compiled model.
+    :param metrics: training and validation metrics
+    :return: compiled
     """
-    if shallow:
-        model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
-    elif dual_path:
-        model = DualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    if shallow_unet:
+        seg_model = ShallowUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
+    elif fcn:
+        seg_model = FCN(img_height=img_height, img_width=img_width, img_channels=in_channels)
     elif attention_dual_path:
-        model = AttentionDualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
+        seg_model = AttentionDualPathUnet(img_height=img_height, img_width=img_width, img_channels=in_channels)
     else:
         raise NotImplementedError()
 
-    model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
-    model.model.summary()
+    seg_model.compile(loss_function=loss, optimizer=optimizer, metrics=metrics)
+    seg_model.model.summary()
 
-    return model
+    return seg_model
 
 
 def make_callbacks(model_name: str) -> list:
@@ -134,25 +176,29 @@ if __name__ == '__main__':
     input_channels = config["input_channels"]
 
     # Model parameters
-    shallow = config["shallow"]
-    dual_path = config["dual_path"]
+    shallow_unet = config["shallow_unet"]
+    fcn = config["fcn"]
     attention_dual_path = config["attention_dual_path"]
 
-    segmentation_dataset, train_size, val_size = create_dataset(train_data_dir)
+    # Create training and validation datasets
+    segmentation_dataset, train_size, val_size = create_train_and_val_dataset(train_data_dir)
 
-    unet = build_model(img_width=image_height,
-                       img_height=image_width,
-                       in_channels=input_channels,
-                       loss=JaccardLoss(),
-                       optimizer=tf.optimizers.Adam(),
-                       metrics=[iou, dice])
+    # Build the segmentation model
+    model = build_model(img_width=image_height,
+                        img_height=image_width,
+                        in_channels=input_channels,
+                        loss=JaccardLoss(),
+                        optimizer=tf.optimizers.Adam(),
+                        metrics=[iou, dice])
 
-    callbacks_list = make_callbacks(model_name=unet.__class__.__name__)
+    # Create list of callbacks
+    callbacks_list = make_callbacks(model_name=model.__class__.__name__)
 
+    # Train the model on GPU
     with tf.device("device:GPU:0"):
-        history = unet.train(dataset=segmentation_dataset,
-                             train_size=train_size,
-                             val_size=val_size,
-                             batch_size=batch_size,
-                             epochs=epochs,
-                             callbacks=callbacks_list)
+        history = model.train(dataset=segmentation_dataset,
+                              train_size=train_size,
+                              val_size=val_size,
+                              batch_size=batch_size,
+                              epochs=epochs,
+                              callbacks=callbacks_list)
