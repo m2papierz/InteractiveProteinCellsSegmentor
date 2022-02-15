@@ -3,7 +3,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from glob import glob
-from utils.loss_and_metrics import iou, dice, JaccardLoss
+from pipeline.loss_and_metrics import iou, dice, JaccardLoss
 from utils.configuaration import config_data_pipeline_performance, read_yaml_file
 
 from model_architectures.ShallowUnet import ShallowUnet
