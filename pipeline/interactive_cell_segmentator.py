@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from pipeline.generate_click_distance_maps import create_guidance_map
-from utils.loss_and_metrics import JaccardLoss, iou, dice
+from pipeline.loss_and_metrics import JaccardLoss, iou, dice
 
 matplotlib.use('Qt5Agg')
 cgitb.enable(format='text')
@@ -138,6 +138,7 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         :param img_dpi: resolution of an image
         """
         super(InteractiveCellSegmentator, self).__init__(*args, **kwargs)
+        self.setWindowTitle("Interactive Cell Segmentator")
 
         self.image = load_image(path=img_path, img_channels=img_channels)
         self.pos_clicks = []
