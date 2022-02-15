@@ -83,8 +83,10 @@ def get_annotations_dict(data_xml: BeautifulSoup) -> dict:
     for image in images:
         image_dict = {}
         for i, point in enumerate(image.find_all("points")):
-            coordinates = list(map(lambda x: int(float(x)), point["points"].split(",")))[::-1]
-            image_dict.update({point["label"] + str(i): coordinates})
+            coordinates = list(map(
+                lambda x: int(float(x)), point["points"].split(","))
+            )
+            image_dict.update({point["label"] + str(i): coordinates[::-1]})
         ann_dict.update({image["name"]: image_dict})
 
     return ann_dict
