@@ -4,10 +4,10 @@ import tensorflow as tf
 
 def read_yaml_file(yaml_file_path: str):
     """
-    Helper function for reading yaml files.
+    A helper function for reading yaml files.
 
-    :param yaml_file_path: path to yaml file
-    :return: content of opened yaml file
+    :param yaml_file_path: path to the yaml file
+    :return: content of the yaml file
     """
     with open(yaml_file_path, 'r') as stream:
         try:
