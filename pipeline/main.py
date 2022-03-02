@@ -4,7 +4,7 @@ import cgitb
 
 from PyQt5 import QtWidgets
 from utils.configuaration import read_yaml_file
-from interactive_cell_segmentator import CellSegmentator, InteractiveCellSegmentator
+from InteractiveCellSegmentator import CellSegmentator, InteractiveCellSegmentator
 
 from model_architectures.ShallowUnet import ShallowUnet
 from model_architectures.FCN import FCN
@@ -15,9 +15,7 @@ cgitb.enable(format='text')
 if __name__ == '__main__':
     config = read_yaml_file("../pipeline/config.yaml")
 
-    project_dir = config["project_dir"]
     models_dir = config["models_dir"]
-    test_data_dir = config["test_data_dir"]
     test_image_path = config['test_image_path']
 
     shallow_unet = config["shallow_unet"]

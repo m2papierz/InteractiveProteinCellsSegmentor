@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-from pipeline.generate_click_distance_maps import create_guidance_map
+from pipeline.generate_click_guidance_maps import create_guidance_map
 from pipeline.loss_and_metrics import JaccardLoss, iou, dice
 
 matplotlib.use('Qt5Agg')
@@ -105,22 +105,26 @@ class CellSegmentator:
                                       scale=self.neg_clicks_scale)
         return np.array(pos_map), np.array(neg_map)
 
-    def segment(self, image):
+    def segment(self, image: np.array):
         """
         Cuts target segmentation object from the image based on user interaction.
 
         :param image: image on which segmentation is conducted
-        :return: cut target segmentation object
+        :return: image of the segmented object
         """
         pos_click_map, neg_click_map = self.__generate_click_maps()
-        input_ = cancat_input_tensors(image=image,
-                                      pos_map=pos_click_map,
-                                      neg_map=neg_click_map,
-                                      img_height=self.img_height,
-                                      img_width=self.img_width)
-        prediction = self.model.predict(input_)
-        image, pred_mask = np.array(image, dtype=np.float32), np.array(prediction, dtype=np.float32)
+        input_tensor = cancat_input_tensors(
+            image=image,
+            pos_map=pos_click_map,
+            neg_map=neg_click_map,
+            img_height=self.img_height,
+            img_width=self.img_width)
+        prediction = self.model.predict(input_tensor)
+
+        image, pred_mask = np.array(image, dtype=np.float32), \
+                           np.array(prediction, dtype=np.float32)
         pred_mask = np.where(pred_mask > 0.5, pred_mask, 0.0)
+
         return (image * pred_mask)[0]
 
 
@@ -152,9 +156,9 @@ class InteractiveCellSegmentator(QtWidgets.QMainWindow):
         self.toolbar = NavigationToolbar(self.sc, self)
         self.positive_click_btn = QRadioButton("Positive click")
         self.negative_click_btn = QRadioButton("Negative click")
-        self.segment_click_btn = QPushButton("Segment cell")
-        self.reset_click_btn = QPushButton("Reset image")
-        self.file_dialog_btn = QPushButton("Choose image")
+        self.segment_click_btn = QPushButton("Perform segmentation")
+        self.reset_click_btn = QPushButton("Reset application state")
+        self.file_dialog_btn = QPushButton("Select image")
 
         self.__setup_scene()
 
