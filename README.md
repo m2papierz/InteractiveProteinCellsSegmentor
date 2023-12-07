@@ -7,15 +7,15 @@ data used in the project is a publicly available dataset by the Human Protein At
 project, consisting of images of human protein cells taken using confocal microscopy.
 
 In addition, a new convolutional encoder-decoder architecture was proposed and compared with state-of-the-art 
-architectures, with results indicating that the proposed architecture is more accurate. The proposed architecture is a 
-dual-path u-net with spatial and channel attentional modules in the up-sampling path:  
+architectures, with results indicating that the introduced architecture is more accurate. The designed architecture is 
+a dual-path u-net with spatial and channel attentional modules in the up-sampling path:  
 
 <p align="center">
 <img align="center" src="utils/ADP-UNET.png" alt="drawing" width="520" height="420"/>
 </p>
 
-The proposed solution was tested using a simple GUI to perform real-time interactive image segmentation using neural 
-networks trained in this project. Below is a brief presentation of the GUI and its functionality:
+Trained models can be tested using a simple GUI to perform real-time interactive image segmentation. Below is a brief 
+presentation of the GUI and its functionality:
 
 <p align="center">
 <img src="utils/SegmentationGIF.gif" width="550" height="700"/>
