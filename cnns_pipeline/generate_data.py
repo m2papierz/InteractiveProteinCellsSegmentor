@@ -1,21 +1,30 @@
 import os
 import sys
+import argparse
 import numpy as np
 from PIL import Image
 
 from tqdm import tqdm
+from pathlib import Path
+from typing import List, Tuple
 from bs4 import BeautifulSoup
-from utils.configuaration import read_yaml_file
+
+try:
+    sys.path.insert(1, str(Path(__file__).parent.parent))
+except Exception:
+    raise EnvironmentError
+
+from utils.paths_manager import PathsManager
+from utils.constants import IMG_WIDTH, IMG_HEIGHT
 
 
-def euclidean_distance(p1: tuple, p2: tuple, scale=1.0) -> float:
+def euclidean_distance(
+        p1: Tuple[int, int],
+        p2: Tuple[int, int],
+        scale: float = 1.0
+) -> float:
     """
-    Calculates euclidean distance between two points.
-
-    :param p1: first point coordinates
-    :param p2: second point coordinates
-    :param scale: scale factor
-    :return: euclidean distance
+    Calculates Euclidean distance between two points.
     """
     distance = 0
     for dim in range(len(p1)):
@@ -23,16 +32,15 @@ def euclidean_distance(p1: tuple, p2: tuple, scale=1.0) -> float:
     return np.sqrt(distance) * scale
 
 
-def create_guidance_map(shape: tuple, points: list, scale=1.0, image=False, omega=255.0) -> np.array:
+def create_guidance_map(
+        shape: Tuple[int, int],
+        points: List[list],
+        scale: float = 1.0,
+        image: bool = False,
+        omega: float = 255.0
+) -> np.ndarray:
     """
     Creates guidance map for given points being scaled reverted Euclidean distance map.
-
-    :param shape: shape of the output map
-    :param points: list of points coordinates
-    :param scale: scale factor
-    :param image: flag indicating if created map will be save as image
-    :param omega: max map value
-    :return: gaussian map array
     """
     dm = np.full(shape, omega)
 
@@ -70,7 +78,9 @@ def create_guidance_map(shape: tuple, points: list, scale=1.0, image=False, omeg
     return np.abs(np.array(dm) - 255.0)
 
 
-def get_annotations_dict(data_xml: BeautifulSoup) -> dict:
+def get_annotations_dict(
+        data_xml: BeautifulSoup
+) -> dict:
     """
     Creates dictionaries with point annotations.
 
@@ -92,16 +102,21 @@ def get_annotations_dict(data_xml: BeautifulSoup) -> dict:
     return ann_dict
 
 
-def create_and_save_guidance_maps(xml_files_path: str, pos_save: str, neg_save: str) -> None:
+def create_and_save_guidance_maps(
+        xml_files_path: Path,
+        pos_click_map_scale: float,
+        neg_click_map_scale: float,
+        pos_save: Path,
+        neg_save: Path
+) -> None:
     """
     Creates and saves guidance maps images of positive and negative clicks for given annotations.
-
-    :param xml_files_path: dictionary with points annotations
-    :param pos_save: path to save positive clicks maps
-    :param neg_save: path to save negative clicks maps
     """
+    assert os.listdir(xml_files_path), \
+        "No .xml file in the given directory"
+
     for i, xml_file in enumerate(os.listdir(xml_files_path)):
-        with open(xml_files_path + xml_file, 'r') as xml:
+        with open(xml_files_path / xml_file, 'r') as xml:
             data = xml.read()
         ann_dict = get_annotations_dict(BeautifulSoup(data, "xml"))
 
@@ -115,40 +130,51 @@ def create_and_save_guidance_maps(xml_files_path: str, pos_save: str, neg_save: 
                 if "neg_click" in label:
                     neg_coordinates.append(coordinates)
 
-            pos_map = create_guidance_map(shape=(image_height, image_width), points=pos_coordinates,
-                                          image=True, scale=pos_click_map_scale)
-            neg_map = create_guidance_map(shape=(image_height, image_width), points=neg_coordinates,
-                                          image=True, scale=neg_click_map_scale)
+            pos_map = create_guidance_map(
+                shape=(IMG_HEIGHT, IMG_WIDTH),
+                points=pos_coordinates,
+                image=True,
+                scale=pos_click_map_scale
+            )
 
-            Image.fromarray(pos_map.astype(np.uint8)).save(pos_save + filename, "PNG")
-            Image.fromarray(neg_map.astype(np.uint8)).save(neg_save + filename, "PNG")
+            neg_map = create_guidance_map(
+                shape=(IMG_HEIGHT, IMG_WIDTH),
+                points=neg_coordinates,
+                image=True,
+                scale=neg_click_map_scale
+            )
+
+            Image.fromarray(pos_map.astype(np.uint8)).save(pos_save / filename, "PNG")
+            Image.fromarray(neg_map.astype(np.uint8)).save(neg_save / filename, "PNG")
 
 
 if __name__ == '__main__':
-    config = read_yaml_file("./config.yaml")
+    paths_manager = PathsManager()
+    config = paths_manager.config
+    parser = argparse.ArgumentParser()
 
-    project_dir = config["project_dir"]
-    train_data_dir = config["train_data_dir"]
-    test_data_dir = config["test_data_dir"]
-
-    train_annotations_dir = os.path.join(project_dir, config["train_annotations_dir"])
-    test_annotations_dir = os.path.join(project_dir, config["test_annotations_dir"])
-    train_pos_click_maps_dir = os.path.join(project_dir, train_data_dir + config["pos_click_maps_dir"])
-    train_neg_click_maps_dir = os.path.join(project_dir, train_data_dir + config["neg_click_maps_dir"])
-    test_pos_click_maps_dir = os.path.join(project_dir, test_data_dir + config["pos_click_maps_dir"])
-    test_neg_click_maps_dir = os.path.join(project_dir, test_data_dir + config["neg_click_maps_dir"])
-
-    image_height = config["image_height"]
-    image_width = config["image_width"]
-    pos_click_map_scale = config["pos_click_map_scale"]
-    neg_click_map_scale = config["neg_click_map_scale"]
+    parser.add_argument(
+        '--pos_click_map_scale', type=int, default=config.pos_click_map_scale,
+        help='')
+    parser.add_argument(
+        '--neg_click_map_scale', type=int, default=config.neg_click_map_scale,
+        help='')
+    args = parser.parse_args()
 
     print("\n----- GENERATING TRAIN GUIDANCE MAPS -----")
-    create_and_save_guidance_maps(xml_files_path=train_annotations_dir,
-                                  pos_save=train_pos_click_maps_dir,
-                                  neg_save=train_neg_click_maps_dir)
+    create_and_save_guidance_maps(
+        xml_files_path=paths_manager.train_annotations_dir(),
+        pos_click_map_scale=args.pos_click_map_scale,
+        neg_click_map_scale=args.neg_click_map_scale,
+        pos_save=paths_manager.train_pos_click_maps_dir(),
+        neg_save=paths_manager.train_neg_click_maps_dir()
+    )
 
     print("\n----- GENERATING TEST GUIDANCE MAPS -----")
-    create_and_save_guidance_maps(xml_files_path=test_annotations_dir,
-                                  pos_save=test_pos_click_maps_dir,
-                                  neg_save=test_neg_click_maps_dir)
+    create_and_save_guidance_maps(
+        xml_files_path=paths_manager.test_annotations_dir(),
+        pos_click_map_scale=args.pos_click_map_scale,
+        neg_click_map_scale=args.neg_click_map_scale,
+        pos_save=paths_manager.test_pos_click_maps_dir(),
+        neg_save=paths_manager.test_neg_click_maps_dir()
+    )
