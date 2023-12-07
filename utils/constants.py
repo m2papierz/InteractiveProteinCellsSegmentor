@@ -1,0 +1,9 @@
+# Pipeline constants
+IMG_HEIGHT = 512
+IMG_WIDTH = 512
+SEED = 42
+
+# UI constants
+WINDOW_SIZE = 1000
+WINDOW_X_POS = 700
+WINDOW_Y_POS = 200
