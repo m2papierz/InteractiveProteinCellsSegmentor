@@ -1,0 +1,16 @@
+# Paths and dirs
+data_dir: "./segmentation_data/"
+models_dir: "./trained_models/"
+
+# Model and training params
+model: DP-UNET
+batch_size: 2
+epochs: 300
+es_patience: 20
+split_ratio: 0.9
+buffer_size: 32
+seed: 42
+
+# Data params
+pos_click_map_scale: 2.0
+neg_click_map_scale: 3.5
