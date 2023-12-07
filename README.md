@@ -10,9 +10,13 @@ In addition, a new convolutional encoder-decoder architecture was proposed and c
 architectures, with results indicating that the proposed architecture is more accurate. The proposed architecture is a 
 dual-path u-net with spatial and channel attentional modules in the up-sampling path:  
 
-<img src="utils/ADP-UNET.png" alt="drawing" width="600"/>
+<div style="text-align:center">
+<img align="center" src="utils/ADP-UNET.png" alt="drawing" width="520" height="420"/>
+</div>
 
 The proposed solution was tested using a simple GUI to perform real-time interactive image segmentation using neural 
 networks trained in this project. Below is a brief presentation of the GUI and its functionality:
 
-![alt-text](utils/SegmentationGIF.gif)
+<div style="text-align:center">
+<img src="utils/SegmentationGIF.gif" width="450" height="600"/>
+</div>
